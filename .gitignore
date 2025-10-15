@@ -1,0 +1,31 @@
+# ---- General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+
+# ---- Git
+.git-credentials
+.gitconfig
+
+# ---- Java / Maven (backend)
+backend/target/
+backend/.idea/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/*.iml
+
+# ---- Node / Angular (frontend)
+frontend/node_modules/
+frontend/.angular/cache/
+frontend/dist/
+
+# ---- Env files
+.env
+backend/.env
+frontend/.env
+
+# ---- Docker volumes (if any local bind paths)
+dbdata/

@@ -1,0 +1,47 @@
+:root {
+  --primary: #1976d2;
+  --accent: #64b5f6;
+  --bg: #0d1117;
+  --card-bg: #161b22;
+  --text: #e6edf3;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.7rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+button:hover {
+  background: var(--accent);
+}
+input {
+  width: 100%;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  margin: 0.4rem 0;
+  background: #0d1117;
+  color: var(--text);
+}
+h2 {
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
