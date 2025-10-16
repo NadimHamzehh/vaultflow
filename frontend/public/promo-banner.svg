@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="320" viewBox="0 0 1400 320">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1">
+      <stop offset="0" stop-color="#1fb6ff"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="320" fill="url(#bg)" rx="8"/>
+  <g transform="translate(40,30)">
+    <text x="0" y="40" fill="#fff" font-size="28" font-weight="700">Experience the world your way</text>
+    <text x="0" y="90" fill="#e6eef6" font-size="18">Discover our exclusive range of cards</text>
+    <rect x="0" y="120" rx="8" width="420" height="160" fill="#fff" opacity="0.06"/>
+  </g>
+  <g transform="translate(980,20)">
+    <rect width="380" height="240" rx="12" fill="#fff" opacity="0.08"/>
+    <text x="20" y="40" fill="#fff" font-size="16">Premium Cards</text>
+  </g>
+</svg>

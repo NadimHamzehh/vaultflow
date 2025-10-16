@@ -1,25 +1,28 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { MatCardModule } from '@angular/material/card';
 
 @Component({
   standalone: true,
   selector: 'app-admin',
-  imports: [CommonModule],
+  imports: [CommonModule, MatCardModule],
   template: `
-  <div class="card" style="max-width:800px; margin:3rem auto;">
+  <mat-card style="max-width:980px; margin:2.5rem auto;">
     <h2>Admin Dashboard</h2>
-    <table style="width:100%; border-collapse:collapse;">
-      <tr style="border-bottom:1px solid #30363d;">
-        <th>Username</th><th>Account</th><th>Balance</th>
-      </tr>
-      <tr *ngFor="let acc of accounts">
-        <td>{{acc.username}}</td>
-        <td>{{acc.accountNumber}}</td>
-        <td>{{acc.balance | number:'1.2-2'}}</td>
-      </tr>
-    </table>
-  </div>
+    <div style="overflow:auto">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr style="border-bottom:1px solid #30363d;">
+          <th>Username</th><th>Account</th><th>Balance</th>
+        </tr>
+        <tr *ngFor="let acc of accounts">
+          <td>{{acc.username}}</td>
+          <td>{{acc.accountNumber}}</td>
+          <td>{{acc.balance | number:'1.2-2'}}</td>
+        </tr>
+      </table>
+    </div>
+  </mat-card>
   `
 })
 export class AdminComponent implements OnInit {

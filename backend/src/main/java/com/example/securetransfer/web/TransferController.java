@@ -7,6 +7,7 @@ import com.example.securetransfer.service.TransferService;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.core.Authentication;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -30,7 +31,7 @@ public class TransferController {
   }
 
   @PostMapping("/transfers")
-  public Map<String,Object> transfer(@RequestBody TransferRequest req, Authentication auth){
+  public Map<String,Object> transfer(@Valid @RequestBody TransferRequest req, Authentication auth){
     var user = users.findByUsername(auth.getName()).orElseThrow();
 
     if (!limiter.tryTransfer(user.getUsername()))

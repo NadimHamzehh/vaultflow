@@ -15,6 +15,8 @@ public class ApiExceptionHandler {
   @ExceptionHandler(MethodArgumentNotValidException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public Map<String,String> handleValidation(MethodArgumentNotValidException ex){
-    return Map.of("error","Validation failed");
+    var fieldErr = ex.getBindingResult().getFieldErrors().stream().findFirst();
+    var msg = fieldErr.map(fe -> fe.getField()+": "+fe.getDefaultMessage()).orElse("Validation failed");
+    return Map.of("error", msg);
   }
 }
