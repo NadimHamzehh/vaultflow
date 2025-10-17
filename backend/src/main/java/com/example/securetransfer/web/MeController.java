@@ -1,3 +1,4 @@
+// src/main/java/com/example/securetransfer/web/MeController.java
 package com.example.securetransfer.web;
 
 import com.example.securetransfer.repo.AccountRepository;
@@ -6,32 +7,24 @@ import com.example.securetransfer.repo.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/me")
 public class MeController {
+
   private final UserRepository users;
   private final AccountRepository accounts;
   private final TxnRepository txns;
 
-  public MeController(UserRepository u, AccountRepository a, TxnRepository t){
-    this.users=u; this.accounts=a; this.txns=t;
+  public MeController(UserRepository users, AccountRepository accounts, TxnRepository txns) {
+    this.users = users;
+    this.accounts = accounts;
+    this.txns = txns;
   }
 
-  @GetMapping("/account")
-  public Map<String,Object> myAccount(Authentication auth){
-    var user = users.findByUsername(auth.getName()).orElseThrow();
-    var acc = accounts.findByUserId(user.getId()).orElseThrow();
-    return Map.of(
-      "username", user.getUsername(),
-      "accountNumber", acc.getAccountNumber(),
-      "balance", acc.getBalance()
-    );
-  }
+  // NOTE: /api/me/account is handled by AccountController to avoid duplicate mappings.
 
   @GetMapping("/transactions")
-  public Object myTransactions(Authentication auth){
+  public Object myTransactions(Authentication auth) {
     var user = users.findByUsername(auth.getName()).orElseThrow();
     var acc = accounts.findByUserId(user.getId()).orElseThrow();
     return txns.findBySenderAccountOrRecipientAccountOrderByCreatedAtDesc(

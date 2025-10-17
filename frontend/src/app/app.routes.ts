@@ -20,28 +20,26 @@ import { adminGuard } from './guards/admin.guard';
 import { adminRedirectGuard } from './guards/admin-redirect.guard';
 
 export const routes: Routes = [
+  // Default → login
   { path: '', pathMatch: 'full', redirectTo: 'login' },
 
   // Auth
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
 
-  // Admin (no sidebar layout in app.component)
+  // Admin (standalone)
   { path: 'admin', component: AdminDashboardComponent, canActivate: [adminGuard] },
 
-  // Regular app (admins get bounced to /admin)
-  {
-    path: 'app',
-    canActivate: [adminRedirectGuard],
-    children: [
-      { path: '', pathMatch: 'full', component: DashboardComponent },
-      { path: 'transfer', component: TransferComponent },
-      { path: 'history', component: HistoryComponent },
-      { path: 'account', component: AccountComponent },
-      { path: 'security', component: SecurityComponent },
-      { path: 'admin', redirectTo: '/admin', pathMatch: 'full' }, // hard stop if someone typed /app/admin
-    ],
-  },
+  // App (explicit top-level routes; prevents child-route mounting issues)
+  { path: 'app', pathMatch: 'full', redirectTo: 'app/dashboard' },
+  { path: 'app/dashboard', component: DashboardComponent, canActivate: [adminRedirectGuard] },
+  { path: 'app/transfer',  component: TransferComponent,  canActivate: [adminRedirectGuard] },
+  { path: 'app/history',   component: HistoryComponent,   canActivate: [adminRedirectGuard] },
+  { path: 'app/account',   component: AccountComponent,   canActivate: [adminRedirectGuard] }, // <-- important
+  { path: 'app/security',  component: SecurityComponent,  canActivate: [adminRedirectGuard] },
+
+  // Hard stop if someone types /app/admin
+  { path: 'app/admin', redirectTo: '/admin', pathMatch: 'full' },
 
   // Fallback
   { path: '**', redirectTo: 'login' },

@@ -28,7 +28,6 @@ import { MatChipsModule } from '@angular/material/chips';
         <div class="head">
           <h2 style="margin:0">Transaction History</h2>
           <mat-chip-set>
-            <mat-chip class="chip" selected>Secure</mat-chip>
             <mat-chip class="chip">Most recent first</mat-chip>
           </mat-chip-set>
         </div>
@@ -40,7 +39,7 @@ import { MatChipsModule } from '@angular/material/chips';
                 <th>Sender</th>
                 <th>Recipient</th>
                 <th>Amount</th>
-                <th>Date (local)</th>
+                <th>Date</th>
               </tr>
             </thead>
             <tbody>

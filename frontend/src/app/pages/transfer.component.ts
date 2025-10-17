@@ -23,91 +23,184 @@ import { DeviceManagementComponent } from '../components/device-management.compo
     MatIconModule, MatTooltipModule, MatDialogModule
   ],
   styles: [`
-    .wrap { max-width: 980px; margin: 2.2rem auto; padding: 0 1rem; }
-    .panel { display:grid; grid-template-columns:1fr 320px; gap:1rem; }
-    .card { background: var(--card-gradient); border:1px solid var(--border-color); border-radius: var(--border-radius); padding:1.1rem; }
-    .muted { color: var(--text-secondary); }
-    .banner { display:flex; align-items:center; gap:.7rem; padding:.85rem 1rem; border-radius:12px; border:1px solid; margin-bottom: .9rem; }
-    .banner.success{ background: var(--success-bg); color: var(--success); border-color: rgba(63,185,80,.3) }
-    .banner.error  { background: var(--error-bg);   color: var(--error);   border-color: rgba(248,81,73,.3) }
-    @media (max-width: 980px){ .panel{ grid-template-columns: 1fr; } }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+
+    :host {
+      display:block;
+      font-family:'Inter',sans-serif;
+      background:linear-gradient(135deg,#0b0f17 0%,#151a2b 100%);
+      min-height:100vh;
+      color:#e6e9ef;
+    }
+
+    .wrap {
+      max-width:960px;
+      margin:3rem auto;
+      padding:0 1.4rem;
+      animation: fadeIn 0.8s ease;
+    }
+
+    h2 {
+      font-family:'Space Grotesk',sans-serif;
+      font-weight:700;
+      letter-spacing:.5px;
+      color:#fff;
+      margin-bottom:.2rem;
+    }
+    .subtitle { color:#9aa3b2; margin:0 0 1rem 0; }
+
+    mat-card {
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:1.4rem 1.6rem;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 40px rgba(0,0,0,0.4);
+      animation: cardFade 0.9s ease;
+    }
+
+    .panel {
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:1.2rem;
+    }
+    @media(max-width:860px){ .panel{ grid-template-columns:1fr; } }
+
+    .btn-primary {
+      background:linear-gradient(135deg,#8b5cf6,#6d28d9);
+      color:white;
+      border:none;
+      border-radius:10px;
+      font-weight:600;
+      letter-spacing:.3px;
+      padding:.8rem 1.3rem;
+      transition:all .25s ease;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.5rem;
+    }
+    .btn-primary:hover {
+      transform:translateY(-2px);
+      box-shadow:0 8px 25px rgba(139,92,246,.4);
+    }
+
+    .pretty-field .mat-mdc-text-field-wrapper {
+      border-radius:12px!important;
+      background:rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.1);
+      transition:border-color .2s ease, box-shadow .2s ease;
+    }
+    .pretty-field.mat-focused .mat-mdc-text-field-wrapper {
+      background:rgba(255,255,255,.08);
+      box-shadow:0 0 0 3px rgba(139,92,246,.25);
+      border-color:rgba(139,92,246,.4);
+    }
+    .pretty-field .mat-mdc-input-element::placeholder {
+      color:rgba(230,233,239,.7);
+      font-family:'Space Grotesk',sans-serif;
+      opacity:1;
+    }
+
+    .banner {
+      display:flex;align-items:center;gap:.7rem;
+      padding:.9rem 1rem;border-radius:12px;margin-bottom:1rem;
+      border:1px solid;
+      animation: slideIn .4s ease;
+    }
+    .banner.success{ background:rgba(34,197,94,.1);color:#4ade80;border-color:rgba(34,197,94,.4);}
+    .banner.error{background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.4);}
+    .muted{color:#9aa3b2;}
+
+    .tips ul{margin:.6rem 0 0 1.1rem;color:#aab1c1;font-size:.95rem;}
+    .tips li{margin-bottom:.35rem;}
+
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    @keyframes slideIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes cardFade{from{opacity:0;transform:translateY(15px);}to{opacity:1;transform:translateY(0);}}
   `],
   template: `
-    <div class="wrap">
-      <div *ngIf="status() === 'success'" class="banner success">
-        <mat-icon>check_circle</mat-icon>
-        <div>
-          <div style="font-weight:600">Transfer Complete</div>
-          <div class="muted">Your transfer has been processed successfully</div>
-        </div>
-        <span class="spacer" style="flex:1"></span>
-        <button mat-icon-button (click)="status.set(null)"><mat-icon>close</mat-icon></button>
-      </div>
+  <div class="wrap">
 
-      <div *ngIf="status() === 'error'" class="banner error">
-        <mat-icon>error</mat-icon>
-        <div>
-          <div style="font-weight:600">Transfer Failed</div>
-          <div class="muted">{{ lastError() }}</div>
-        </div>
-        <span class="spacer" style="flex:1"></span>
-        <button mat-icon-button (click)="status.set(null)"><mat-icon>close</mat-icon></button>
+    <!-- Success Banner -->
+    <div *ngIf="status() === 'success'" class="banner success">
+      <mat-icon>check_circle</mat-icon>
+      <div>
+        <div style="font-weight:600">Transfer Complete</div>
+        <div class="muted">Your funds have been sent successfully.</div>
       </div>
+      <span style="flex:1"></span>
+      <button mat-icon-button (click)="status.set(null)"><mat-icon>close</mat-icon></button>
+    </div>
 
-      <div class="panel">
-        <mat-card class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
-            <div>
-              <h2 style="margin:0">New Transfer</h2>
-              <p class="muted" style="margin:.2rem 0 0">Send funds quickly and securely.</p>
-            </div>
-            <button mat-icon-button (click)="openDeviceManagement()" matTooltip="Manage Devices">
-              <mat-icon>security</mat-icon>
+    <!-- Error Banner -->
+    <div *ngIf="status() === 'error'" class="banner error">
+      <mat-icon>error</mat-icon>
+      <div>
+        <div style="font-weight:600">Transfer Failed</div>
+        <div class="muted">{{ lastError() }}</div>
+      </div>
+      <span style="flex:1"></span>
+      <button mat-icon-button (click)="status.set(null)"><mat-icon>close</mat-icon></button>
+    </div>
+
+    <div class="panel">
+      <mat-card>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <div>
+            <h2>New Transfer</h2>
+            <p class="subtitle">Send funds instantly & securely.</p>
+          </div>
+          <button mat-icon-button matTooltip="Manage Devices" (click)="openDeviceManagement()">
+            <mat-icon>security</mat-icon>
+          </button>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" autocomplete="off">
+          <mat-form-field appearance="outline" class="pretty-field" style="width:100%;margin-bottom:1rem;">
+            <mat-label>Recipient account number</mat-label>
+            <input matInput formControlName="recipientAccountNumber" placeholder="">
+            <mat-error *ngIf="r.invalid && r.touched">Please enter a valid account number.</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="pretty-field" style="width:100%;margin-bottom:1rem;">
+            <mat-label>Amount (USD)</mat-label>
+            <input matInput type="number" step="5" min="5" formControlName="amount" placeholder="">
+            <mat-error *ngIf="a.invalid && a.touched">Enter a valid amount (min $5)</mat-error>
+          </mat-form-field>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+            <button class="btn-primary" type="submit" [disabled]="form.invalid || loading()">
+              <mat-spinner *ngIf="loading()" mode="indeterminate" diameter="18" strokeWidth="3"></mat-spinner>
+              <span *ngIf="!loading()">Send Transfer</span>
+              <span *ngIf="loading()">Sending...</span>
             </button>
           </div>
+        </form>
+      </mat-card>
 
-          <form [formGroup]="form" (ngSubmit)="submit()">
-            <mat-form-field appearance="fill" style="width:100%">
-              <mat-label>Recipient account number</mat-label>
-              <input matInput formControlName="recipientAccountNumber" placeholder="e.g. ACCT2002">
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" style="width:100%">
-              <mat-label>Amount (USD)</mat-label>
-              <input matInput type="number" step="0.01" min="0.01" formControlName="amount" placeholder="e.g. 100.00">
-            </mat-form-field>
-
-            <div style="display:flex;justify-content:flex-end;margin-top:.5rem">
-              <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || loading()">
-                <mat-spinner *ngIf="loading()" mode="indeterminate" diameter="18" strokeWidth="3" style="margin-right:.5rem"></mat-spinner>
-                <span *ngIf="!loading()">Send transfer</span>
-                <span *ngIf="loading()">Sending…</span>
-              </button>
-            </div>
-          </form>
-        </mat-card>
-
-        <mat-card class="card">
-          <h3 style="margin:0 0 .4rem">Quick tips</h3>
-          <ul class="muted" style="margin:.2rem 0 0 1.1rem">
-            <li>Ensure recipient account number is correct.</li>
-            <li>Minimum transfer amount $0.01.</li>
-            <li>Transfers are instant and secured.</li>
-          </ul>
-        </mat-card>
-      </div>
+      <mat-card class="tips">
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:700;margin:0;">Quick Tips</h3>
+        <ul>
+          <li>Ensure the recipient’s account number is correct.</li>
+          <li>Minimum transfer amount is 5 $.</li>
+          <li>Transfers are encrypted & processed instantly.</li>
+          <li>Keep your 2FA active for extra protection.</li>
+        </ul>
+      </mat-card>
     </div>
+  </div>
   `
 })
 export class TransferComponent implements OnInit {
   form!: FormGroup;
-  // typed handles
   r!: FormControl<string>;
   a!: FormControl<number>;
 
   base = 'http://localhost:8080/api/transfers';
   loading = signal(false);
-  status = signal<'success'|'error'|null>(null);
+  status = signal<'success' | 'error' | null>(null);
   lastError = signal<string>('');
   securityChecks = 0;
 
@@ -146,7 +239,10 @@ export class TransferComponent implements OnInit {
     if (this.form.invalid || this.loading()) return;
 
     const token = localStorage.getItem('token');
-    if (!token) { this.snack.open('Not authenticated', 'Close', {duration: 2000}); return; }
+    if (!token) {
+      this.snack.open('Not authenticated', 'Close', { duration: 2000 });
+      return;
+    }
 
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
     const body = {

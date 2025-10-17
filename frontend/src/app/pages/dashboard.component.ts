@@ -196,15 +196,7 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
           </div>
         </div>
 
-        <div class="card" style="margin-top:1rem;">
-          <div class="card-title">Shortcuts</div>
-          <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
-            <a class="btn-primary" routerLink="/app/transfer"><mat-icon>send</mat-icon> New transfer</a>
-            <a class="btn" routerLink="/app/history"><mat-icon>history</mat-icon> History</a>
-            <a class="btn" routerLink="/app/security"><mat-icon>shield</mat-icon> Security</a>
-            <a class="btn" routerLink="/app/account"><mat-icon>person</mat-icon> Account</a>
-          </div>
-        </div>
+        <!-- Shortcuts card removed as requested -->
       </div>
     </div>
   </section>

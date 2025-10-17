@@ -33,15 +33,11 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // application.properties:
-    // vaultflow.cors.allowed-origins=http://localhost:4200
     @Value("${vaultflow.cors.allowed-origins:http://localhost:4200}")
     private String allowedOrigins;
 
     @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
     UserDetailsService userDetailsService(UserRepository users) {
@@ -49,7 +45,7 @@ public class SecurityConfig {
             .map(u -> org.springframework.security.core.userdetails.User
                 .withUsername(u.getUsername())
                 .password(u.getPassword())
-                .roles("USER") // keep as-is; JWT may still carry ADMIN for API guards
+                .roles("USER") // JWT claims still carry actual roles for API checks
                 .build())
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
@@ -70,26 +66,19 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         var cfg = new CorsConfiguration();
-
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
-            .map(String::trim)
-            .filter(s -> !s.isBlank())
-            .collect(Collectors.toList());
-
+            .map(String::trim).filter(s -> !s.isBlank()).collect(Collectors.toList());
         cfg.setAllowedOrigins(origins);
-        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        cfg.setAllowedHeaders(List.of("Authorization","Content-Type"));
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
-
-        var source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", cfg);
-        return source;
+        var src = new UrlBasedCorsConfigurationSource();
+        src.registerCorsConfiguration("/**", cfg);
+        return src;
     }
 
-    /** Open chain for actuator health (no auth). */
-    @Bean
-    @Order(0)
+    @Bean @Order(0)
     SecurityFilterChain actuatorChain(HttpSecurity http) throws Exception {
         return http
             .securityMatcher("/actuator/health")
@@ -99,9 +88,7 @@ public class SecurityConfig {
             .build();
     }
 
-    /** Main API chain under /api/** */
-    @Bean
-    @Order(1)
+    @Bean @Order(1)
     SecurityFilterChain apiChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
         return http
             .securityMatcher("/api/**")
@@ -109,16 +96,19 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // allow preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // public auth
-                .requestMatchers("/api/auth/**").permitAll()
-                // 2FA endpoints: must be authenticated
-                .requestMatchers("/api/2fa/**").authenticated()
-                // admin area
+
+                // Public auth endpoints
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+
+                // 2FA verification: ONLY temp tokens with ROLE_PRE_AUTH may call
+                .requestMatchers("/api/auth/2fa/**").hasRole("PRE_AUTH")
+
+                // Admin area
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // everything else requires auth
-                .anyRequest().authenticated()
+
+                // Everything else requires a full session (USER/ADMIN)
+                .anyRequest().hasAnyRole("USER","ADMIN")
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .build();
