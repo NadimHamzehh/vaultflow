@@ -64,7 +64,7 @@ type Login2FA = { requires2fa: true; tempToken: string };
       flex-direction:column;
       justify-content:center;
       align-items:center;
-      padding:56px 20px; /* extra top/bottom so the title never looks clipped */
+      padding:56px 20px;
       text-align:center;
     }
 
@@ -73,8 +73,8 @@ type Login2FA = { requires2fa: true; tempToken: string };
       font-size: clamp(2rem, 4vw, 3rem);
       font-weight: 700;
       letter-spacing: .5px;
-      line-height: 1.15;        /* prevents visual clipping */
-      padding-block: 6px;       /* breathing room above/below */
+      line-height: 1.15;
+      padding-block: 6px;
       margin: 0 0 .35rem 0;
       background: linear-gradient(90deg, var(--accent1), var(--accent2));
       -webkit-background-clip: text;
@@ -99,16 +99,13 @@ type Login2FA = { requires2fa: true; tempToken: string };
       animation: fadeIn 1.1s ease;
     }
 
-    /* ------- Polished inputs ------- */
     .pretty-field .mat-mdc-text-field-wrapper {
       border-radius: 14px !important;
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.10);
       transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
     }
-    .pretty-field .mat-mdc-form-field-flex {
-      padding: 6px 12px !important;
-    }
+    .pretty-field .mat-mdc-form-field-flex { padding: 6px 12px !important; }
     .pretty-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
     .pretty-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
     .pretty-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
@@ -216,7 +213,7 @@ type Login2FA = { requires2fa: true; tempToken: string };
             <mat-form-field appearance="outline" class="pretty-field" style="width:100%;">
               <mat-label>One-time code</mat-label>
               <input matInput formControlName="code" maxlength="6" placeholder="" inputmode="numeric"/>
-              <mat-hint align="end">{{ otp.value?.length || 0 }}/6</mat-hint>
+              <mat-hint align="end">{{ otpLen }}/6</mat-hint>
               <mat-error *ngIf="otp.touched && otp.invalid">Enter your 6-digit code</mat-error>
             </mat-form-field>
 
@@ -267,6 +264,11 @@ export class LoginComponent {
       code: this.fb.control<string>('', [Validators.required, Validators.pattern(/^\d{6}$/)]),
     });
     this.otp = this.otpForm.controls['code'] as FormControl<string>;
+  }
+
+  /** Fix for prod template checker (NG8107): avoid optional chain on non-nullable control value in template */
+  get otpLen(): number {
+    return (this.otp?.value?.length ?? 0);
   }
 
   showPwd() { return this.showPassword(); }
