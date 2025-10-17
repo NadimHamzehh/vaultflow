@@ -1,0 +1,25 @@
+package com.example.securetransfer.admin;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+
+@RestController
+@RequestMapping("/api/admin")
+public class AdminMetricsController {
+
+    private final AdminMetricsService service;
+
+    public AdminMetricsController(AdminMetricsService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/metrics")
+    public AdminMetrics metrics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return service.forRange(from, to);
+    }
+}

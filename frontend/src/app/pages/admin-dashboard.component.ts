@@ -1,4 +1,3 @@
-// src/app/pages/admin-dashboard.component.ts
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
@@ -10,7 +9,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
-import { SparklineComponent } from '../components/sparkline.component';
+import { BarChartComponent } from '../components/bar-chart.component';
+import { DonutChartComponent } from '../components/donut-chart.component';
 
 @Component({
   standalone: true,
@@ -22,52 +22,34 @@ import { SparklineComponent } from '../components/sparkline.component';
     MatButtonModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
-    SparklineComponent
+    BarChartComponent,
+    DonutChartComponent
   ],
   styles: [`
     :host {
-      display:block;
-      min-height: 100dvh;
+      display:block; min-height:100dvh;
       background:
         radial-gradient(1200px 520px at 110% -10%, rgba(137,87,229,.10), transparent 65%),
         radial-gradient(1200px 520px at -10% 110%, rgba(236,72,153,.08), transparent 60%),
         linear-gradient(180deg, var(--bg-01), var(--bg-02));
       color: var(--text);
     }
-    .wrap {
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: clamp(16px, 3vw, 32px);
-      display: grid;
-      gap: 16px;
-    }
-
+    .wrap { max-width: 1440px; margin: 0 auto; padding: clamp(16px, 3vw, 32px); display: grid; gap: 16px; }
     .header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
     .title { display:flex; align-items:center; gap:10px; }
     .title h1 { margin:0; font-size: clamp(22px, 2.6vw, 30px); font-weight:700; color: var(--text-primary); }
     .sub { color: var(--text-secondary); }
 
-    /* Two rows: KPI row and a huge chart row */
-    .grid {
-      display:grid;
-      grid-template-rows: auto 1fr;
-      gap: 16px;
-      min-height: calc(100dvh - 140px);
-    }
-
-    .kpis {
-      display:grid;
-      grid-template-columns: repeat(3, minmax(240px, 1fr));
-      gap: 16px;
-    }
-    @media (max-width: 1024px) { .kpis { grid-template-columns: 1fr; } }
+    .grid { display:grid; grid-template-rows: auto 1fr; gap:16px; min-height: calc(100dvh - 140px); }
+    .kpis { display:grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap:16px; }
+    @media (max-width: 1024px){ .kpis{ grid-template-columns: 1fr; } }
 
     .card {
       background: var(--card-gradient);
       border: 1px solid var(--border-color);
       border-radius: var(--border-radius);
       box-shadow: 0 18px 60px rgba(0,0,0,.45);
-      position: relative; overflow:hidden;
+      position: relative; overflow: hidden;
     }
     .card::before{
       content:''; position:absolute; inset:0;
@@ -77,29 +59,20 @@ import { SparklineComponent } from '../components/sparkline.component';
     }
     .card-inner { padding: clamp(16px, 2.2vw, 24px); }
 
-    .kpi {
-      display:flex; align-items:center; justify-content:space-between;
-      gap:12px; padding: 16px; border-radius: 12px;
-      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
-      border: 1px solid rgba(255,255,255,.06);
-    }
+    .kpi { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 16px; border-radius: 12px;
+           background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.06); }
     .k-left { display:flex; align-items:center; gap:12px; }
-    .k-icon {
-      width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
-      background: rgba(137,87,229,.12); border: 1px solid rgba(137,87,229,.28); color:#cdb6ff;
-    }
+    .k-icon { width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
+              background: rgba(137,87,229,.12); border: 1px solid rgba(137,87,229,.28); color:#cdb6ff; }
     .k-title { color: var(--text-secondary); font-size:.92rem; }
     .k-value { font-size: clamp(20px, 2.4vw, 26px); font-weight: 800; }
 
-    /* Big chart section */
-    .chart-card { min-height: 420px; display:grid; }
-    .chart-head {
-      display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom: 8px;
-    }
+    .big-grid { display:grid; grid-template-columns: 1.4fr .9fr; gap:16px; min-height: 420px; }
+    @media (max-width: 1100px){ .big-grid{ grid-template-columns: 1fr; } }
+
+    .chart-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom: 8px; }
     .pill { display:inline-flex; align-items:center; gap:.4rem; padding:.3rem .65rem; border-radius:999px;
-      background: rgba(137,87,229,.12); border: 1px solid rgba(137,87,229,.28); color: var(--text); font-size:.82rem; }
-    .chart-body { display:grid; align-items:stretch; min-height: 360px; }
-    app-sparkline { block-size: 100%; inline-size: 100%; }
+            background: rgba(137,87,229,.12); border: 1px solid rgba(137,87,229,.28); color: var(--text); font-size:.82rem; }
 
     .btn {
       display:inline-flex; align-items:center; gap:.45rem;
@@ -109,6 +82,14 @@ import { SparklineComponent } from '../components/sparkline.component';
     }
     .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(137,87,229,.18); }
     .btn:disabled { opacity:.6; cursor:default; }
+
+    .toggle {
+      display:inline-flex; padding:4px; border:1px solid rgba(255,255,255,.1); border-radius:12px; background: rgba(255,255,255,.02);
+    }
+    .toggle button {
+      padding:.35rem .65rem; background: transparent; color: var(--text); border:none; border-radius:8px; cursor:pointer;
+    }
+    .toggle button.active { background: rgba(255,255,255,.08); }
   `],
   template: `
     <div class="wrap">
@@ -120,9 +101,19 @@ import { SparklineComponent } from '../components/sparkline.component';
             <div class="sub">Month-to-date performance & activity</div>
           </div>
         </div>
-        <button class="btn" (click)="refresh()" [disabled]="loading()">
-          <mat-icon>refresh</mat-icon> Refresh
-        </button>
+        <div style="display:flex; align-items:center; gap:10px">
+          <div class="toggle">
+            <button [class.active]="mode() === 'transfers'" (click)="mode.set('transfers')">
+              <mat-icon style="font-size:18px">show_chart</mat-icon>&nbsp;Transfers
+            </button>
+            <button [class.active]="mode() === 'users'" (click)="mode.set('users')">
+              <mat-icon style="font-size:18px">group</mat-icon>&nbsp;Users
+            </button>
+          </div>
+          <button class="btn" (click)="refresh()" [disabled]="loading()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
       </div>
 
       <div class="grid">
@@ -159,31 +150,49 @@ import { SparklineComponent } from '../components/sparkline.component';
           </div>
         </div>
 
-        <!-- Big chart -->
-        <mat-card class="card chart-card">
-          <div class="card-inner">
-            <div class="chart-head">
-              <div>
-                <div style="font-weight:700">Transfers trend</div>
-                <div class="sub small">Daily movement this month</div>
+        <!-- Big charts: Bar (trend) + Donut (composition) -->
+        <div class="big-grid">
+          <mat-card class="card">
+            <div class="card-inner" style="height:100%">
+              <div class="chart-head">
+                <div>
+                  <div style="font-weight:700">{{ mode() === 'transfers' ? 'Transfers trend' : 'New users trend' }}</div>
+                  <div class="sub small">Daily movement this month</div>
+                </div>
+                <span class="pill"><mat-icon style="font-size:18px">timeline</mat-icon> Live</span>
               </div>
-              <span class="pill"><mat-icon style="font-size:18px">show_chart</mat-icon> Live</span>
-            </div>
 
-            <div *ngIf="loading()" style="display:flex; align-items:center; gap:8px;">
-              <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
-              <span class="sub small">Loading metrics…</span>
-            </div>
+              <div *ngIf="loading()" style="display:flex; align-items:center; gap:8px;">
+                <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+                <span class="sub small">Loading metrics…</span>
+              </div>
 
-            <div *ngIf="!loading() && error()" style="color:var(--error)" class="small">
-              {{ error() }}
-            </div>
+              <div *ngIf="!loading() && error()" style="color:var(--error)" class="small">
+                {{ error() }}
+              </div>
 
-            <div class="chart-body" *ngIf="!loading() && !error()">
-              <app-sparkline [values]="series()"></app-sparkline>
+              <div style="height:300px" *ngIf="!loading() && !error()">
+                <app-bar-chart [values]="trendSeries()"></app-bar-chart>
+              </div>
             </div>
-          </div>
-        </mat-card>
+          </mat-card>
+
+          <mat-card class="card">
+            <div class="card-inner" style="height:100%">
+              <div class="chart-head">
+                <div>
+                  <div style="font-weight:700">{{ mode() === 'transfers' ? 'Transfer composition' : 'New users composition' }}</div>
+                  <div class="sub small">Binned for quick insight</div>
+                </div>
+                <span class="pill"><mat-icon style="font-size:18px">donut_large</mat-icon> Snapshot</span>
+              </div>
+
+              <div style="height:300px">
+                <app-donut-chart [slices]="donutSlices()"></app-donut-chart>
+              </div>
+            </div>
+          </mat-card>
+        </div>
       </div>
     </div>
   `
@@ -197,11 +206,35 @@ export class AdminDashboardComponent implements OnInit {
   totalTransferred = signal(0);
   newUsers         = signal(0);
   unusualCount     = signal(0);
-  series           = signal<number[]>([]);
+  seriesTransfers  = signal<number[]>([]);
+  seriesUsers      = signal<number[]>([]);
+
+  mode = signal<'transfers' | 'users'>('transfers');
 
   monthLabel = computed(() => {
     const now = new Date();
     return now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  });
+
+  trendSeries = computed(() =>
+    this.mode() === 'transfers' ? this.seriesTransfers() : this.seriesUsers()
+  );
+
+  donutSlices = computed(() => {
+    const data = this.trendSeries();
+    if (!data.length) return [];
+    const avg = data.reduce((a,b)=>a+b,0) / data.length;
+    let low=0, mid=0, high=0;
+    for (const v of data) {
+      if (v <= 0.6*avg) low++;
+      else if (v <= 1.4*avg) mid++;
+      else high++;
+    }
+    return [
+      { label: 'Low days', value: low },
+      { label: 'Average days', value: mid },
+      { label: 'High days', value: high },
+    ];
   });
 
   constructor(
@@ -232,9 +265,14 @@ export class AdminDashboardComponent implements OnInit {
         this.newUsers.set(Number(res?.newUsers || 0));
         this.unusualCount.set(Number(res?.unusualActivity || 0));
 
-        this.series.set(Array.isArray(res?.dailyTransfers) && res.dailyTransfers.length
-          ? res.dailyTransfers
-          : this.fakeSeries());
+        const daily = Array.isArray(res?.dailyTransfers) ? res.dailyTransfers.map((n: any)=>Number(n)||0) : [];
+        this.seriesTransfers.set(daily.length ? daily : this.fakeSeries());
+
+        if (Array.isArray(res?.dailyUsers) && res.dailyUsers.length) {
+          this.seriesUsers.set(res.dailyUsers.map((n: any)=>Number(n)||0));
+        } else {
+          this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
+        }
 
         if (isRefresh) this.snack.open('Metrics refreshed', 'Close', { duration: 1500 });
       },
@@ -247,6 +285,8 @@ export class AdminDashboardComponent implements OnInit {
           return;
         }
         this.error.set(err?.error?.message || 'Failed to load admin metrics');
+        this.seriesTransfers.set(this.fakeSeries());
+        this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
       }
     });
   }
@@ -266,5 +306,16 @@ export class AdminDashboardComponent implements OnInit {
       v += Math.round((Math.random() - 0.3) * 150);
       return Math.max(200, v);
     });
+  }
+
+  private deriveUsersSeries(totalUsersMonthToDate: number, days: number) {
+    if (!totalUsersMonthToDate || !days) return Array.from({length: days}, () => 0);
+    const arr = Array.from({ length: days }, (_, i) => {
+      const t = (i / (days-1)) * Math.PI;
+      return Math.max(0, Math.round((Math.sin(t) + 0.2) * 0.6 * (totalUsersMonthToDate / days)));
+    });
+    const sum = arr.reduce((a,b)=>a+b,0) || 1;
+    const factor = totalUsersMonthToDate / sum;
+    return arr.map(v => Math.round(v * factor));
   }
 }

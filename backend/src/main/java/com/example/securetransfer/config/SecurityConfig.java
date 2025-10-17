@@ -49,7 +49,7 @@ public class SecurityConfig {
             .map(u -> org.springframework.security.core.userdetails.User
                 .withUsername(u.getUsername())
                 .password(u.getPassword())
-                .roles("USER")
+                .roles("USER") // keep as-is; JWT may still carry ADMIN for API guards
                 .build())
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
@@ -71,7 +71,6 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         var cfg = new CorsConfiguration();
 
-        // split and trim in case of comma-separated list
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
             .map(String::trim)
             .filter(s -> !s.isBlank())
@@ -88,9 +87,7 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * Open chain for actuator health (no auth).
-     */
+    /** Open chain for actuator health (no auth). */
     @Bean
     @Order(0)
     SecurityFilterChain actuatorChain(HttpSecurity http) throws Exception {
@@ -102,9 +99,7 @@ public class SecurityConfig {
             .build();
     }
 
-    /**
-     * Main API chain under /api/**
-     */
+    /** Main API chain under /api/** */
     @Bean
     @Order(1)
     SecurityFilterChain apiChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
@@ -114,10 +109,12 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // allow preflight requests explicitly
+                // allow preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // public auth endpoints
+                // public auth
                 .requestMatchers("/api/auth/**").permitAll()
+                // 2FA endpoints: must be authenticated
+                .requestMatchers("/api/2fa/**").authenticated()
                 // admin area
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // everything else requires auth

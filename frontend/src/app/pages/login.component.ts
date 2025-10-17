@@ -181,6 +181,16 @@ export class LoginComponent {
   showPwd() { return this.showPassword(); }
   togglePwd() { this.showPassword.update(v => !v); }
 
+  private tokenHasAdmin(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1] || ''));
+      const raw = Array.isArray(payload?.roles) ? payload.roles.join(',') : (payload?.roles || '');
+      return raw.split(',').map((r: string) => r.trim().toUpperCase()).includes('ADMIN');
+    } catch {
+      return false;
+    }
+  }
+
   login() {
     if (this.form.invalid || this.loading()) return;
 
@@ -189,8 +199,9 @@ export class LoginComponent {
       next: (res) => {
         this.loading.set(false);
         localStorage.setItem('token', res.token);
+        const isAdmin = this.tokenHasAdmin(res.token);
         this.snack.open('Signed in', 'Close', { duration: 2000 });
-        this.router.navigate(['/app']);
+        this.router.navigate([ isAdmin ? '/admin' : '/app' ]);
       },
       error: (err) => {
         this.loading.set(false);

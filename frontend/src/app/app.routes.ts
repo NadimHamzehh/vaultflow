@@ -1,33 +1,48 @@
+// src/app/app.routes.ts
 import { Routes } from '@angular/router';
 
+// Auth
+import { LoginComponent } from './pages/login.component';
+import { RegisterComponent } from './pages/register.component';
+
+// User app pages
 import { DashboardComponent } from './pages/dashboard.component';
 import { TransferComponent } from './pages/transfer.component';
 import { HistoryComponent } from './pages/history.component';
 import { AccountComponent } from './pages/account.component';
 import { SecurityComponent } from './pages/security.component';
-import { LoginComponent } from './pages/login.component';
-import { RegisterComponent } from './pages/register.component';
+
+// Admin page (standalone)
 import { AdminDashboardComponent } from './pages/admin-dashboard.component';
-import { AdminGuard } from './guards/admin.guard';
+
+// Guards (functional CanActivate)
+import { adminGuard } from './guards/admin.guard';
+import { adminRedirectGuard } from './guards/admin-redirect.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent, title: 'Login' },
-  { path: 'register', component: RegisterComponent, title: 'Register' },
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
 
+  // Auth
+  { path: 'login', component: LoginComponent },
+  { path: 'register', component: RegisterComponent },
+
+  // Admin (no sidebar layout in app.component)
+  { path: 'admin', component: AdminDashboardComponent, canActivate: [adminGuard] },
+
+  // Regular app (admins get bounced to /admin)
   {
     path: 'app',
+    canActivate: [adminRedirectGuard],
     children: [
-      { path: '', component: DashboardComponent, title: 'Overview' },
-      { path: 'transfer', component: TransferComponent, title: 'Transfer' },
-      { path: 'history', component: HistoryComponent, title: 'History' },
-      { path: 'account', component: AccountComponent, title: 'Account' },
-      { path: 'security', component: SecurityComponent, title: 'Security' },
-
-      // SINGLE admin page, guarded
-      { path: 'admin', component: AdminDashboardComponent, canActivate: [AdminGuard], title: 'Admin' },
+      { path: '', pathMatch: 'full', component: DashboardComponent },
+      { path: 'transfer', component: TransferComponent },
+      { path: 'history', component: HistoryComponent },
+      { path: 'account', component: AccountComponent },
+      { path: 'security', component: SecurityComponent },
+      { path: 'admin', redirectTo: '/admin', pathMatch: 'full' }, // hard stop if someone typed /app/admin
     ],
   },
 
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  // Fallback
   { path: '**', redirectTo: 'login' },
 ];

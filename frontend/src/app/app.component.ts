@@ -3,11 +3,12 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { SupportWidgetComponent } from './components/support-widget.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, SupportWidgetComponent],
   template: `
     <!-- AUTH LAYOUT (no nav) -->
     <ng-container *ngIf="isAuthPage(); else nonAuth">
@@ -78,11 +79,7 @@ import { filter } from 'rxjs/operators';
                 </a>
 
                 <div class="divider"></div>
-
-                <!-- Admin link only visible if token has ADMIN -->
-                <a *ngIf="isAdmin()" routerLink="/app/admin" routerLinkActive="active" class="admin-link">
-                  <span class="dot admin"></span> Admin
-                </a>
+                <!-- No admin link here on purpose -->
               </nav>
 
               <div class="sidebar-footer">
@@ -94,6 +91,8 @@ import { filter } from 'rxjs/operators';
               <div class="container fade-in">
                 <router-outlet></router-outlet>
               </div>
+              <!-- Support widget only on user pages -->
+              <app-support-widget *ngIf="!isAuthPage() && !isAdminRoute()"></app-support-widget>
             </main>
           </div>
         </div>
@@ -163,14 +162,13 @@ import { filter } from 'rxjs/operators';
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
     }
     .dot { width:8px; height:8px; border-radius:50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(137,87,229,.12); }
-    .dot.admin { background: #22d3ee; box-shadow: 0 0 0 4px rgba(34,211,238,.14); }
 
     .divider { height:1px; margin:.4rem 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent); }
     .sidebar-footer { padding:.4rem .2rem; display:flex; }
     .sidebar-footer .link { color: var(--text-secondary); text-decoration:none; font-size:.95rem; }
     .sidebar-footer .link:hover { color: var(--text); }
 
-    /* Responsive: collapse sidebar into drawer */
+    /* Responsive */
     @media (max-width: 980px) {
       .hamburger { display:flex; }
       .body { grid-template-columns: 1fr; }
@@ -189,31 +187,38 @@ export class AppComponent {
   private currentUrl = signal<string>('');
 
   constructor(private router: Router) {
-    // track route changes so layout switching is always correct
+    // initial
     this.currentUrl.set(this.router.url);
-    this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe((e: any) => {
-      this.currentUrl.set(e.urlAfterRedirects || e.url || '');
-      // close the drawer when navigating on mobile
-      this.navOpen.set(false);
-      // guard: if someone opens /app/admin without ADMIN, bounce to /app
-      if (this.isAdminRoute() && !this.isAdmin()) {
-        this.router.navigate(['/app']);
-      }
-    });
+
+    // track route changes so layout switching + guards are correct
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe((e: any) => {
+        this.currentUrl.set(e.urlAfterRedirects || e.url || '');
+        // close the drawer on navigation (mobile)
+        this.navOpen.set(false);
+        // guard: if someone opens /admin without ADMIN, bounce to /app
+        if (this.isAdminRoute() && !this.isAdmin()) {
+          this.router.navigate(['/app']);
+        }
+      });
   }
 
   toggleNav() { this.navOpen.update(v => !v); }
 
+  /** Login & Register have no chrome */
   isAuthPage(): boolean {
     const url = this.currentUrl();
     return url.startsWith('/login') || url.startsWith('/register');
   }
 
+  /** Admin area uses its own chrome (no sidebar) */
   isAdminRoute(): boolean {
     const url = this.currentUrl();
-    return url.startsWith('/app/admin');
+    return url.startsWith('/admin');
   }
 
+  /** Decode roles safely */
   isAdmin(): boolean {
     const token = localStorage.getItem('token');
     if (!token) return false;
@@ -221,7 +226,7 @@ export class AppComponent {
       const payload = JSON.parse(atob(token.split('.')[1] || ''));
       const roles = Array.isArray(payload?.roles)
         ? payload.roles
-        : String(payload?.roles || '').split(',').map((s: string) => s.trim());
+        : String(payload?.roles || '').split(',').map((s: string) => s.trim().toUpperCase());
       return roles.includes('ADMIN');
     } catch {
       return false;

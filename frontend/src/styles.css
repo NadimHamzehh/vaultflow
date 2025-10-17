@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ================================
    THEME TOKENS (DARK, BANK-GRADE)
@@ -58,7 +58,7 @@ html, body { height: 100%; }
 body {
   margin: 0;
   color-scheme: dark;
-  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   background: linear-gradient(180deg, var(--bg-01), var(--bg-02));
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -260,6 +260,12 @@ body::before {
   border:1px solid rgba(255,255,255,0.02);
   background: linear-gradient(180deg, transparent, rgba(255,255,255,0.01));
   margin:.4rem 0;
+}
+
+/* Utility: span full grid width on wide screens (used by dashboard/admin sections) */
+.wide { grid-column: 1 / -1; }     /* spans both columns on desktop */
+@media (max-width: 1024px){
+  .wide { grid-column: auto; }     /* reset on narrow screens */
 }
 
 /* ===== Material (MDC) dark overrides ===== */

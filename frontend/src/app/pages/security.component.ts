@@ -1,116 +1,201 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { HttpClient } from '@angular/common/http';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
   standalone: true,
   selector: 'app-security',
-  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatSnackBarModule, MatProgressSpinnerModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatSnackBarModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule
+  ],
   styles: [`
-    .wrap { max-width: 1100px; margin: 1.6rem auto; padding: 0 1rem; }
-    .card { background: var(--card-gradient); border:1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.1rem; }
-    .muted { color: var(--text-secondary); }
-    .row { padding: .9rem; border:1px solid rgba(255,255,255,.06); border-radius: 12px; background: rgba(255,255,255,.02); margin:.6rem 0; }
-    .status-dot{width:10px;height:10px;border-radius:50%}
-    .status-dot.success{background:#3FB950;box-shadow:0 0 0 4px rgba(63,185,80,.12)}
-    .status-dot.error{background:#F85149;box-shadow:0 0 0 4px rgba(248,81,73,.12)}
+    :host { display:block; }
+    .wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 16px; }
+
+    .card {
+      background: var(--card-gradient);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+      position: relative; overflow: hidden;
+    }
+    .card::before{
+      content:''; position:absolute; inset:0;
+      background: var(--premium-gradient); opacity:.06;
+      pointer-events:none; -webkit-mask: linear-gradient(135deg, #000, transparent);
+              mask: linear-gradient(135deg, #000, transparent);
+    }
+    .inner { padding: clamp(16px, 2.2vw, 24px); }
+
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 860px){ .row { grid-template-columns: 1fr; } }
+
+    .qr { display:flex; align-items:center; justify-content:center; padding:12px; border-radius:12px;
+          background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+    .hint { color: var(--text-secondary); }
+
+    .btn {
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.6rem .9rem; border:none; border-radius: var(--border-radius);
+      background: var(--accent-gradient); color:#fff; cursor:pointer;
+      transition: transform .18s, box-shadow .18s, filter .18s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(137,87,229,.18); }
+    .btn.secondary { background: transparent; border: 1px solid var(--border-color); color: var(--text); }
   `],
   template: `
     <div class="wrap">
+      <!-- Account Security -->
       <mat-card class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
-          <div>
-            <h2 style="margin:0">Security Settings</h2>
-            <div class="muted">Manage your account security and device access</div>
-          </div>
-          <div class="status-dot success"></div>
-        </div>
+        <div class="inner">
+          <h2>Account security</h2>
+          <p class="hint">Manage two-factor authentication (TOTP) for your account.</p>
 
-        <div class="row" [style.borderColor]="twoFactorEnabled ? 'rgba(63,185,80,.35)' : 'rgba(255,255,255,.06)'">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-weight:600">Two-Factor Authentication</div>
-              <div class="muted">{{twoFactorEnabled ? 'Enabled - Using Authenticator App' : 'Not enabled - Click to setup'}}</div>
+          <div *ngIf="!enabled()">
+            <p>Two-factor authentication is <strong>disabled</strong>.</p>
+            <button class="btn" (click)="startEnroll()" [disabled]="busy()">Enable 2FA</button>
+          </div>
+
+          <div *ngIf="enabled()">
+            <p>Two-factor authentication is <strong>enabled</strong>.</p>
+            <button class="btn secondary" (click)="disable()" [disabled]="busy()">Disable 2FA</button>
+          </div>
+        </div>
+      </mat-card>
+
+      <!-- Enrollment (QR + verify form) -->
+      <mat-card class="card" *ngIf="enrolling()">
+        <div class="inner">
+          <h3>Finish setup</h3>
+          <div class="row">
+            <div class="qr">
+              <img *ngIf="qr()" [src]="qr()" alt="Scan in Google Authenticator" style="max-width:260px; width:100%; border-radius:10px" />
             </div>
-            <button mat-flat-button [color]="twoFactorEnabled ? 'accent' : 'primary'" (click)="toggleTwoFactor()" [disabled]="loading">
-              <mat-spinner *ngIf="loading" mode="indeterminate" diameter="18"></mat-spinner>
-              <span *ngIf="!loading">{{twoFactorEnabled ? 'Manage' : 'Enable'}}</span>
-            </button>
-          </div>
-        </div>
 
-        <div class="row">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-weight:600">Change Password</div>
-              <div class="muted">Last changed 30 days ago</div>
-            </div>
-            <button mat-flat-button color="primary" (click)="changePassword()">Update</button>
-          </div>
-        </div>
+            <form [formGroup]="verifyForm" (ngSubmit)="verify()">
+              <p class="hint">Scan the QR with Google Authenticator / Authy, then enter the 6-digit code.</p>
+              <mat-form-field appearance="fill" style="width:100%">
+                <mat-label>6-digit code</mat-label>
+                <input matInput formControlName="code" placeholder="123 456" inputmode="numeric" autocomplete="one-time-code">
+              </mat-form-field>
 
-        <div class="row">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-weight:600">Device Management</div>
-              <div class="muted">2 active devices</div>
-            </div>
-            <button mat-flat-button color="primary" (click)="viewDevices()">View All</button>
-          </div>
-        </div>
-
-        <div style="margin-top:1rem">
-          <div style="font-weight:600;margin-bottom:.4rem">Recent Activity</div>
-          <div class="row" *ngFor="let activity of recentActivity">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-weight:500">{{activity.action}}</div>
-                <div class="muted">{{activity.date}} • {{activity.location}}</div>
+              <div style="display:flex; gap:10px; align-items:center">
+                <button class="btn" type="submit" [disabled]="verifyForm.invalid || busy()">Verify & enable</button>
+                <button class="btn secondary" type="button" (click)="cancelEnroll()" [disabled]="busy()">Cancel</button>
               </div>
-              <div [class]="'status-dot ' + activity.status"></div>
-            </div>
+            </form>
           </div>
         </div>
       </mat-card>
     </div>
   `
 })
-export class SecurityComponent {
-  loading = false;
-  twoFactorEnabled = false;
-  recentActivity = [
-    { action: 'Login from Chrome', date: 'Oct 16, 2025', location: 'New York, US', status: 'success' },
-    { action: 'Password Changed', date: 'Sep 15, 2025', location: 'New York, US', status: 'success' },
-    { action: 'Failed Login Attempt', date: 'Sep 10, 2025', location: 'Unknown Location', status: 'error' }
-  ];
+export class SecurityComponent implements OnInit {
+  private readonly base = 'http://localhost:8080/api/2fa';
 
-  constructor(private http: HttpClient, private snack: MatSnackBar) {
-    this.http.get<any>('http://localhost:8080/api/me/security/2fa').subscribe({
-      next: res => this.twoFactorEnabled = !!res?.enabled,
-      error: _ => {/* optional; keep UI graceful if endpoint not implemented */}
+  enabled   = signal(false);
+  enrolling = signal(false);
+  busy      = signal(false);
+  qr        = signal<string | null>(null);
+
+  verifyForm!: FormGroup;
+
+  constructor(
+    private http: HttpClient,
+    private fb: FormBuilder,
+    private snack: MatSnackBar
+  ) {
+    // Initialize form in constructor so DI is ready
+    this.verifyForm = this.fb.group({
+      code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]]
     });
   }
 
-  toggleTwoFactor() {
-    this.loading = true;
-    this.http.post<any>('http://localhost:8080/api/me/security/2fa/toggle', {}).subscribe({
-      next: res => {
-        this.loading = false;
-        this.twoFactorEnabled = !!res?.enabled;
-        this.snack.open(this.twoFactorEnabled ? '2FA enabled' : '2FA disabled', 'Close', {duration: 2000});
-      },
-      error: err => {
-        this.loading = false;
-        this.snack.open(err?.error?.message || 'Could not update 2FA', 'Close', {duration: 3000});
-      }
-    });
+  ngOnInit(): void { this.refreshStatus(); }
+
+  private authHeaders(): HttpHeaders {
+    const t = localStorage.getItem('token') || '';
+    return new HttpHeaders({ Authorization: `Bearer ${t}` });
   }
 
-  changePassword() { this.snack.open('Password change dialog opening…', 'Close', {duration: 2000}); }
-  viewDevices()    { this.snack.open('Device management opening…', 'Close', {duration: 2000}); }
+  refreshStatus() {
+    this.http.get<{enabled:boolean}>(`${this.base}/status`, { headers: this.authHeaders() })
+      .subscribe({
+        next: r => this.enabled.set(!!r.enabled),
+        error: _ => this.enabled.set(false)
+      });
+  }
+
+  startEnroll() {
+    this.busy.set(true);
+    this.http.post<{secret:string; qrDataUri:string}>(`${this.base}/enroll`, {}, { headers: this.authHeaders() })
+      .subscribe({
+        next: r => {
+          this.busy.set(false);
+          this.qr.set(r.qrDataUri);
+          this.enrolling.set(true);
+          this.snack.open('Scan the QR code with your authenticator app', 'Close', { duration: 2500 });
+        },
+        error: err => {
+          this.busy.set(false);
+          this.snack.open(err?.error?.message || 'Failed to start enrollment', 'Close', { duration: 2500 });
+        }
+      });
+  }
+
+  verify() {
+    if (this.verifyForm.invalid) return;
+    this.busy.set(true);
+    this.http.post<{enabled:boolean}>(`${this.base}/verify`, this.verifyForm.value, { headers: this.authHeaders() })
+      .subscribe({
+        next: r => {
+          this.busy.set(false);
+          if (r.enabled) {
+            this.enrolling.set(false);
+            this.qr.set(null);
+            this.verifyForm.reset();
+            this.enabled.set(true);
+            this.snack.open('Two-factor authentication enabled', 'Close', { duration: 2500 });
+          }
+        },
+        error: err => {
+          this.busy.set(false);
+          this.snack.open(err?.error?.message || 'Invalid code', 'Close', { duration: 2500 });
+        }
+      });
+  }
+
+  cancelEnroll() {
+    this.enrolling.set(false);
+    this.qr.set(null);
+    this.verifyForm.reset();
+  }
+
+  disable() {
+    this.busy.set(true);
+    this.http.post<{enabled:boolean}>(`${this.base}/disable`, {}, { headers: this.authHeaders() })
+      .subscribe({
+        next: _ => {
+          this.busy.set(false);
+          this.enabled.set(false);
+          this.snack.open('Two-factor disabled', 'Close', { duration: 2000 });
+        },
+        error: err => {
+          this.busy.set(false);
+          this.snack.open(err?.error?.message || 'Failed to disable', 'Close', { duration: 2500 });
+        }
+      });
+  }
 }
