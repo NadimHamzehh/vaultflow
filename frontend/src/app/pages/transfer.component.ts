@@ -156,12 +156,7 @@ import { DeviceManagementComponent } from '../components/device-management.compo
           </button>
         </div>
 
-        <!-- Receipt OCR -->
-        <div class="ocr-row">
-          <mat-icon>receipt_long</mat-icon>
-          <input type="file" accept="image/*" (change)="onReceipt($event)">
-          <span class="muted small">Upload a receipt to auto-fill the amount.</span>
-        </div>
+       
 
         <form [formGroup]="form" (ngSubmit)="submit()" autocomplete="off">
           <mat-form-field appearance="outline" class="pretty-field" style="width:100%;margin-bottom:1rem;">

@@ -44,7 +44,6 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
 
     .section-title { font-weight:700; margin-bottom:.6rem; }
 
-    /* Account on left, user info on right */
     .account-top {
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -153,7 +152,6 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
 
           <div class="section-title">Password</div>
           <div class="btn-row">
-            <!-- Only Change Password remains -->
             <button class="btn-ghost" type="button" (click)="toggleChange()">
               <mat-icon>password</mat-icon> Change password
             </button>
@@ -191,7 +189,7 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
               <mat-icon>shield</mat-icon>
               <mat-form-field appearance="outline" class="pretty" style="flex:1;">
                 <mat-label>2FA code</mat-label>
-                <input matInput maxlength="6" formControlName="code" placeholder="" inputmode="numeric">
+                <input matInput maxlength="6" formControlName="code" placeholder="" inputmode="numeric" (input)="digitsOnly($event)">
               </mat-form-field>
             </div>
 
@@ -220,7 +218,7 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
 })
 export class AccountComponent implements OnInit {
   private meAccountUrl = 'http://localhost:8080/api/me/account';
-  private changeUrl = 'http://localhost:8080/api/me/security/password/change';
+  private changeUrl    = 'http://localhost:8080/api/me/security/password/change';
 
   username = '';
   email = '';
@@ -254,22 +252,20 @@ export class AccountComponent implements OnInit {
       confirmNewPassword: this.fb.control<string>('', [Validators.required, Validators.minLength(6)]),
       code: this.fb.control<string>('', [Validators.required, Validators.pattern(/^\d{6}$/)])
     });
-    this.currentPassword = this.pwdForm.controls['currentPassword'] as FormControl<string>;
-    this.newPassword = this.pwdForm.controls['newPassword'] as FormControl<string>;
-    this.confirmNewPassword = this.pwdForm.controls['confirmNewPassword'] as FormControl<string>;
-    this.code = this.pwdForm.controls['code'] as FormControl<string>;
+    this.currentPassword     = this.pwdForm.controls['currentPassword'] as FormControl<string>;
+    this.newPassword         = this.pwdForm.controls['newPassword'] as FormControl<string>;
+    this.confirmNewPassword  = this.pwdForm.controls['confirmNewPassword'] as FormControl<string>;
+    this.code                = this.pwdForm.controls['code'] as FormControl<string>;
   }
 
   private headers(): HttpHeaders | null {
+    // Interceptor already sets the Authorization header; this is a harmless fallback.
     const token = localStorage.getItem('token');
     return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : null;
-    }
+  }
 
   private loadAccount(): void {
-    const headers = this.headers();
-    if (!headers) return;
-
-    this.http.get<AccountDto>(this.meAccountUrl, { headers }).subscribe({
+    this.http.get<AccountDto>(this.meAccountUrl, { headers: this.headers() || undefined }).subscribe({
       next: (d) => {
         this.username = d?.username || '';
         this.email = d?.email || '';
@@ -309,11 +305,16 @@ export class AccountComponent implements OnInit {
     return (this.newPassword.value || '') !== (this.confirmNewPassword.value || '');
   }
 
+  digitsOnly(evt: Event) {
+    const input = evt.target as HTMLInputElement;
+    const cleaned = (input.value || '').replace(/\D+/g, '').slice(0, 6);
+    if (cleaned !== input.value) {
+      this.code.setValue(cleaned);
+    }
+  }
+
   changePassword(): void {
     if (this.pwdForm.invalid || this.pwdMismatch() || this.saving()) return;
-
-    const headers = this.headers();
-    if (!headers) { this.snack.open('Not authenticated', 'Close', { duration: 2000 }); return; }
 
     const body = {
       currentPassword: (this.currentPassword.value || '').trim(),
@@ -323,7 +324,7 @@ export class AccountComponent implements OnInit {
     };
 
     this.saving.set(true);
-    this.http.post<{ message?: string }>(this.changeUrl, body, { headers }).subscribe({
+    this.http.post<{ message?: string }>(this.changeUrl, body, { headers: this.headers() || undefined }).subscribe({
       next: (res) => {
         this.saving.set(false);
         this.snack.open(res?.message || 'Password updated', 'Close', { duration: 2500 });

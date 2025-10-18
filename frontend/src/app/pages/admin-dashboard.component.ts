@@ -12,6 +12,14 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { BarChartComponent } from '../components/bar-chart.component';
 import { DonutChartComponent } from '../components/donut-chart.component';
 
+type TransferRow = {
+  date: string;
+  fromAccount: string;
+  toAccount: string;
+  amount: number;
+  reference: string;
+};
+
 @Component({
   standalone: true,
   selector: 'app-admin-dashboard',
@@ -91,7 +99,7 @@ import { DonutChartComponent } from '../components/donut-chart.component';
     }
     .toggle button.active { background: rgba(255,255,255,.08); }
 
-    /* New: statements action row visible only in Transfers view */
+    /* Statements row */
     .action-row {
       display:flex; align-items:center; justify-content:space-between;
       gap:12px; margin: 8px 0 6px 0;
@@ -102,6 +110,19 @@ import { DonutChartComponent } from '../components/donut-chart.component';
     .action-row .left { display:flex; align-items:center; gap:8px; }
     .action-row .label { font-weight:600; color: var(--text-secondary); }
     .action-row .buttons { display:flex; gap:8px; }
+
+    /* Transfers table */
+    .table-wrap { overflow:auto; border:1px solid rgba(255,255,255,.06); border-radius:12px; }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:640px; }
+    thead tr th {
+      text-align:left; font-weight:700; padding:.75rem .9rem;
+      position:sticky; top:0;
+      background:rgba(255,255,255,.04); backdrop-filter: blur(6px);
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    tbody tr td { padding:.65rem .9rem; border-bottom:1px solid rgba(255,255,255,.06); }
+    tbody tr:last-child td { border-bottom:none; }
+    .amt { font-weight:700; }
   `],
   template: `
     <div class="wrap">
@@ -176,22 +197,6 @@ import { DonutChartComponent } from '../components/donut-chart.component';
                 <span class="pill"><mat-icon style="font-size:18px">timeline</mat-icon> Live</span>
               </div>
 
-              <!-- Statements action row (Transfers only) -->
-              <div *ngIf="mode() === 'transfers'" class="action-row">
-                <div class="left">
-                  <mat-icon>description</mat-icon>
-                  <span class="label">Statements</span>
-                </div>
-                <div class="buttons">
-                  <button class="btn" (click)="downloadCsv()" [disabled]="loading()">
-                    <mat-icon>download</mat-icon> CSV
-                  </button>
-                  <button class="btn" (click)="exportPdf()" [disabled]="loading()">
-                    <mat-icon>picture_as_pdf</mat-icon> PDF
-                  </button>
-                </div>
-              </div>
-
               <div *ngIf="loading()" style="display:flex; align-items:center; gap:8px;">
                 <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
                 <span class="sub small">Loading metrics…</span>
@@ -225,6 +230,61 @@ import { DonutChartComponent } from '../components/donut-chart.component';
             </div>
           </mat-card>
         </div>
+
+        <!-- Transfers section -->
+        <mat-card class="card" *ngIf="mode() === 'transfers'">
+          <div class="card-inner">
+            <div class="chart-head" style="margin-bottom:6px;">
+              <div>
+                <div style="font-weight:700">Transfers ({{monthLabel()}})</div>
+                <div class="sub small">From / To / Amount / Date</div>
+              </div>
+              <span class="pill"><mat-icon style="font-size:18px">list_alt</mat-icon> Table</span>
+            </div>
+
+            <!-- Statements row -->
+            <div class="action-row">
+              <div class="left">
+                <mat-icon>description</mat-icon>
+                <span class="label">Statements</span>
+              </div>
+              <div class="buttons">
+                <button class="btn" (click)="downloadCsv()" [disabled]="loading()">
+                  <mat-icon>download</mat-icon> CSV
+                </button>
+                <button class="btn" (click)="exportPdf()" [disabled]="loading()">
+                  <mat-icon>picture_as_pdf</mat-icon> PDF
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrap" *ngIf="!loading()">
+              <table>
+                <thead>
+                  <tr>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Ref</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of transfers()">
+                    <td>{{ row.fromAccount }}</td>
+                    <td>{{ row.toAccount }}</td>
+                    <td class="amt">\${{ row.amount | number:'1.2-2' }}</td>
+                    <td>{{ row.date | date:'yyyy-MM-dd' }}</td>
+                    <td>{{ row.reference }}</td>
+                  </tr>
+                  <tr *ngIf="!transfers().length">
+                    <td colspan="5" class="sub">No transfers found for {{monthLabel()}}.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </mat-card>
       </div>
     </div>
   `
@@ -244,6 +304,8 @@ export class AdminDashboardComponent implements OnInit {
   seriesTransfers  = signal<number[]>([]);
   seriesUsers      = signal<number[]>([]);
 
+  transfers        = signal<TransferRow[]>([]);
+
   mode = signal<'transfers' | 'users'>('transfers');
 
   monthLabel = computed(() => {
@@ -258,7 +320,7 @@ export class AdminDashboardComponent implements OnInit {
   donutSlices = computed(() => {
     const data = this.trendSeries();
     if (!data.length) return [];
-    const avg = data.reduce((a,b)=>a+b,0) / data.length;
+    const avg = data.reduce((a: number,b: number)=>a+b,0) / data.length;
     let low=0, mid=0, high=0;
     for (const v of data) {
       if (v <= 0.6*avg) low++;
@@ -278,85 +340,241 @@ export class AdminDashboardComponent implements OnInit {
     private snack: MatSnackBar
   ) {}
 
-  ngOnInit(): void { this.fetchMetrics(); }
-  refresh() { this.fetchMetrics(true); }
+  ngOnInit(): void { this.fetchAll(); }
+  refresh() { this.fetchAll(true); }
 
-  // --- Metrics: try year/month first; fallback to from/to if backend returns 400 ---
+  private fetchAll(isRefresh = false) {
+    // Pull metrics (resilient formats) and CSV (for totals + series fallback) in parallel.
+    this.fetchMetrics(isRefresh);
+    this.fetchTransfersFromCsv();
+  }
+
+  // ---- METRICS (resilient) ----
   private fetchMetrics(isRefresh = false) {
     const token = localStorage.getItem('token');
     if (!token) { this.router.navigate(['/login']); return; }
 
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
     const { year, month } = this.currentYm();
-
     this.loading.set(true);
     this.error.set(null);
 
-    // 1) Prefer year/month
-    const ymParams = new HttpParams().set('year', String(year)).set('month', String(month));
-    this.http.get<any>(this.metricsBase, { headers, params: ymParams }).subscribe({
-      next: (res) => this.applyMetrics(res, isRefresh),
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 400) {
-          // 2) Fallback to from/to (OffsetDateTime)
-          const { fromOffset, toOffset } = this.currentMonthOffsets();
-          const ftParams = new HttpParams().set('from', fromOffset).set('to', toOffset);
-          this.http.get<any>(this.metricsBase, { headers, params: ftParams }).subscribe({
-            next: (res2) => this.applyMetrics(res2, isRefresh),
-            error: (err2) => {
-              this.loading.set(false);
-              this.toastHttp(err2, 'Failed to load admin metrics');
-              // keep UI usable with synthetic data
-              this.seriesTransfers.set(this.fakeSeries());
-              this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
-            }
-          });
-        } else {
-          this.loading.set(false);
-          this.toastHttp(err, 'Failed to load admin metrics');
-          this.seriesTransfers.set(this.fakeSeries());
-          this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
-        }
+    const tryCalls = [
+      // 1) year/month (preferred)
+      { params: new HttpParams().set('year', String(year)).set('month', String(month)) },
+      // 2) from/to as LocalDate
+      { params: new HttpParams().set('from', this.firstOfMonthISO()).set('to', this.lastOfMonthISO()) },
+      // 3) from/to as OffsetDateTime (+00:00)
+      { params: new HttpParams().set('from', this.firstOfMonthOffset()).set('to', this.lastOfMonthOffset()) },
+      // 4) from/to as Zulu
+      { params: new HttpParams().set('from', this.firstOfMonthZulu()).set('to', this.lastOfMonthZulu()) },
+    ];
+
+    const exec = (idx: number) => {
+      if (idx >= tryCalls.length) {
+        this.loading.set(false);
+        this.snack.open('Failed to load admin metrics', 'Close', { duration: 2500 });
+        // keep UI usable
+        if (!this.seriesTransfers().length) this.seriesTransfers.set(this.fakeSeries());
+        if (!this.seriesUsers().length) this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
+        return;
       }
-    });
+      this.http.get<any>(this.metricsBase, { headers, params: tryCalls[idx].params }).subscribe({
+        next: (res) => this.applyMetrics(res, isRefresh),
+        error: () => exec(idx + 1)
+      });
+    };
+
+    exec(0);
   }
 
   private applyMetrics(res: any, isRefresh: boolean) {
     this.loading.set(false);
-    // Accept either numeric or string values
+
+    // Robust field mapping (handles variants)
     const toNum = (v: any) => (v == null ? 0 : Number(v));
+    const total = toNum(res?.totalTransferred ?? res?.totalAmount ?? res?.transfers?.total);
+    const users = toNum(res?.newUsers ?? res?.newUsersCount ?? res?.users?.new);
+    const unusual = toNum(res?.unusualActivity ?? res?.unusual ?? res?.alerts);
 
-    this.totalTransferred.set(toNum(res?.totalTransferred));
-    this.newUsers.set(toNum(res?.newUsers));
-    this.unusualCount.set(toNum(res?.unusualActivity));
+    this.totalTransferred.set(total);
+    this.newUsers.set(users);
+    this.unusualCount.set(unusual);
 
-    const daily = Array.isArray(res?.dailyTransfers) ? res.dailyTransfers.map((n: any)=>Number(n)||0) : [];
-    this.seriesTransfers.set(daily.length ? daily : this.fakeSeries());
-
-    if (Array.isArray(res?.dailyUsers) && res.dailyUsers.length) {
-      this.seriesUsers.set(res.dailyUsers.map((n: any)=>Number(n)||0));
+    // Transfers series (use any available key)
+    const tDailySrc =
+      (Array.isArray(res?.dailyTransfers) && res.dailyTransfers) ||
+      (Array.isArray(res?.transfersDaily) && res.transfersDaily) ||
+      (Array.isArray(res?.transfers?.daily) && res.transfers.daily) ||
+      [];
+    const tSeries = tDailySrc.map((n: any) => Number(n) || 0);
+    if (tSeries.length) {
+      this.seriesTransfers.set(tSeries);
+    } else if (this.transfers().length) {
+      // fallback: rebuild from CSV list if already available
+      this.seriesTransfers.set(this.rebuildTransfersSeriesFromRows(this.transfers()));
     } else {
-      this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
+      this.seriesTransfers.set(this.fakeSeries());
+    }
+
+    // Users series (prefer server; fallback: derive from monthly total)
+    const uDailySrcList = [
+      res?.dailyUsers, res?.usersDaily, res?.dailyNewUsers, res?.newUsersDaily,
+      res?.users?.daily
+    ];
+    const uDaily =
+      uDailySrcList.find((arr: any) => Array.isArray(arr)) || [];
+    if (uDaily.length) {
+      const series = uDaily.map((n: any) => Number(n) || 0);
+      this.seriesUsers.set(series);
+      // If total new users wasn't provided, compute from series sum
+      if (!users) this.newUsers.set(series.reduce((a: number, b: number) => a + b, 0));
+    } else {
+      const days = new Date().getDate();
+      this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), days));
     }
 
     if (isRefresh) this.snack.open('Metrics refreshed', 'Close', { duration: 1500 });
   }
 
-  // --- Month helpers ---
+  // ---- TRANSFERS via CSV (guaranteed from DB) ----
+  private fetchTransfersFromCsv() {
+    const token = localStorage.getItem('token');
+    if (!token) { return; }
+
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    const { year, month } = this.currentYm();
+    const url = `${this.statementsBase}/${String(year)}/${String(month).padStart(2,'0')}.csv`;
+
+    this.http.get(url, { headers, responseType: 'text' }).subscribe({
+      next: (csvText) => {
+        const rows = this.parseCsv(csvText);
+        this.transfers.set(rows);
+
+        // Compute total from CSV and override KPI if it’s non-zero
+        const sum = rows.reduce((acc: number, r: TransferRow) => acc + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+        if (sum > 0) this.totalTransferred.set(sum);
+
+        // If transfer series is empty or clearly synthetic, rebuild from CSV
+        const currentT = this.seriesTransfers();
+        if (!currentT.length || this.looksSynthetic(currentT)) {
+          this.seriesTransfers.set(this.rebuildTransfersSeriesFromRows(rows));
+        }
+      },
+      error: () => { /* ignore: metrics may still populate */ }
+    });
+  }
+
+  // Build daily sum series from CSV rows
+  private rebuildTransfersSeriesFromRows(rows: TransferRow[]): number[] {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-index
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const sums = new Array<number>(daysInMonth).fill(0);
+
+    for (const r of rows) {
+      // r.date may be ISO string; just take day-of-month safely
+      const d = new Date(r.date);
+      if (!isNaN(d.getTime()) && d.getMonth() === month && d.getFullYear() === year) {
+        const dayIdx = d.getDate() - 1;
+        sums[dayIdx] += r.amount || 0;
+      } else {
+        // If parsing fails, try fallback by slicing 'YYYY-MM-DD'
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date);
+        if (m && Number(m[1]) === year && Number(m[2]) === (month+1)) {
+          const dayIdx = Number(m[3]) - 1;
+          if (dayIdx >= 0 && dayIdx < daysInMonth) sums[dayIdx] += r.amount || 0;
+        }
+      }
+    }
+    return sums;
+  }
+
+  // Heuristic: synthetic series is usually smooth-ish without zeros at start
+  private looksSynthetic(arr: number[]): boolean {
+    if (!arr.length) return true;
+    let changes = 0;
+    for (let i=1;i<arr.length;i++) if (arr[i] !== arr[i-1]) changes++;
+    return changes < Math.max(3, Math.floor(arr.length * 0.15));
+  }
+
+  // Robust CSV parser for fixed header
+  private parseCsv(text: string): TransferRow[] {
+    if (!text) return [];
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if (!lines.length) return [];
+    const dataLines = lines.slice(1); // skip header
+
+    const parseLine = (line: string): string[] => {
+      const out: string[] = [];
+      let cur = '';
+      let inQ = false;
+      for (let i=0; i<line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+          else { inQ = !inQ; }
+        } else if (ch === ',' && !inQ) {
+          out.push(cur); cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    };
+
+    const rows: TransferRow[] = [];
+    for (const ln of dataLines) {
+      const cols = parseLine(ln);
+      if (cols.length < 5) continue;
+      const [date, from, to, amountStr, ref] = cols;
+      const amount = parseFloat((amountStr ?? '').replace(/[^0-9.-]/g,''));
+      rows.push({
+        date: date || '',
+        fromAccount: from || '',
+        toAccount: to || '',
+        amount: Number.isFinite(amount) ? amount : 0,
+        reference: ref || ''
+      });
+    }
+    // Sort by date desc
+    rows.sort((a: TransferRow, b: TransferRow) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
+    return rows;
+  }
+
+  // ---- Month helpers ----
   private currentYm() {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   }
-  private currentMonthOffsets() {
+  private firstOfMonthISO(): string {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01`;
+  }
+  private lastOfMonthISO(): string {
+    const n = new Date();
+    const lastDay = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  }
+  private firstOfMonthOffset(): string {
+    const n = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0));
+    return n.toISOString().replace('Z','') + '+00:00';
+  }
+  private lastOfMonthOffset(): string {
     const now = new Date();
-    const first = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1, 0, 0, 0));
-    const last  = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59));
-    const toOffsetStr = (d: Date) => {
-      // Produce OffsetDateTime format with milliseconds and +00:00
-      const iso = d.toISOString().replace('Z',''); // e.g. 2025-10-01T00:00:00.000
-      return `${iso}+00:00`;
-    };
-    return { fromOffset: toOffsetStr(first), toOffset: toOffsetStr(last) };
+    const last = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59));
+    return last.toISOString().replace('Z','') + '+00:00';
+  }
+  private firstOfMonthZulu(): string {
+    const n = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0));
+    return n.toISOString();
+  }
+  private lastOfMonthZulu(): string {
+    const now = new Date();
+    const last = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59));
+    return last.toISOString();
   }
 
   private fakeSeries(): number[] {
@@ -371,19 +589,18 @@ export class AdminDashboardComponent implements OnInit {
   private deriveUsersSeries(totalUsersMonthToDate: number, days: number) {
     if (!totalUsersMonthToDate || !days) return Array.from({length: days}, () => 0);
     const arr = Array.from({ length: days }, (_, i) => {
-      const t = (i / (days-1)) * Math.PI;
+      const t = (i / Math.max(1, days-1)) * Math.PI;
       return Math.max(0, Math.round((Math.sin(t) + 0.2) * 0.6 * (totalUsersMonthToDate / days)));
     });
-    const sum = arr.reduce((a,b)=>a+b,0) || 1;
+    const sum = arr.reduce((a:number,b:number)=>a+b,0) || 1;
     const factor = totalUsersMonthToDate / sum;
-    return arr.map(v => Math.round(v * factor));
+    return arr.map((v:number) => Math.round(v * factor));
   }
 
   // ------- Statements actions (CSV / PDF) -------
   downloadCsv() {
     const token = localStorage.getItem('token');
     if (!token) { this.router.navigate(['/login']); return; }
-
     const { year, month } = this.currentYm();
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
 
@@ -398,7 +615,6 @@ export class AdminDashboardComponent implements OnInit {
   exportPdf() {
     const token = localStorage.getItem('token');
     if (!token) { this.router.navigate(['/login']); return; }
-
     const { year, month } = this.currentYm();
     const headers = new HttpHeaders({
       Authorization: `Bearer ${token}`,
@@ -430,7 +646,6 @@ export class AdminDashboardComponent implements OnInit {
       this.snack.open(fallbackMsg, 'Close', { duration: 3000 });
     }
   }
-
   private toastHttp(err: HttpErrorResponse, fallbackMsg: string) {
     const msg = (err?.error && typeof err.error === 'string') ? err.error
               : err?.error?.message || err?.message || fallbackMsg;

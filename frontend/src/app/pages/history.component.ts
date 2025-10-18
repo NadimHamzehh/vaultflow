@@ -27,9 +27,7 @@ import { MatChipsModule } from '@angular/material/chips';
       <mat-card class="card">
         <div class="head">
           <h2 style="margin:0">Transaction History</h2>
-          <mat-chip-set>
-            <mat-chip class="chip">Most recent first</mat-chip>
-          </mat-chip-set>
+          
         </div>
         <div class="body">
           <table class="tbl">

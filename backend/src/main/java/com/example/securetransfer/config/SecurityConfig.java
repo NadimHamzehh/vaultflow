@@ -46,7 +46,6 @@ public class SecurityConfig {
       .map(u -> org.springframework.security.core.userdetails.User
         .withUsername(u.getUsername())
         .password(u.getPassword())
-        // Baseline role; API uses JWT roles for fine-grained checks
         .roles("USER")
         .build())
       .orElseThrow(() -> new UsernameNotFoundException("User not found"));
@@ -77,7 +76,7 @@ public class SecurityConfig {
     cfg.setAllowedHeaders(List.of(
       "Authorization",
       "Content-Type",
-      "X-Idempotency-Key"   // allow idempotency header for transfers
+      "X-Idempotency-Key"
     ));
     cfg.setExposedHeaders(List.of("Authorization"));
     cfg.setAllowCredentials(true);
@@ -113,17 +112,18 @@ public class SecurityConfig {
         .requestMatchers(HttpMethod.POST,
           "/api/auth/login",
           "/api/auth/register",
-          // Allow 2FA verify so the controller can read the temp token
           "/api/auth/2fa/**"
         ).permitAll()
+
+        // ✅ Public dev/test email endpoints (so you can hit them in the browser)
+        .requestMatchers("/api/dev/**").permitAll()
 
         // Admin area
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-        // Everything else requires a valid access token (USER/ADMIN)
+        // Everything else requires a valid access token
         .anyRequest().hasAnyRole("USER","ADMIN")
       )
-      // Parse JWTs (both temp and access) for all /api/** requests
       .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
       .build();
   }
