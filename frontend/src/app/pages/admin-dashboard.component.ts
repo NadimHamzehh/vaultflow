@@ -1,6 +1,6 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 
 import { MatCardModule } from '@angular/material/card';
@@ -90,6 +90,18 @@ import { DonutChartComponent } from '../components/donut-chart.component';
       padding:.35rem .65rem; background: transparent; color: var(--text); border:none; border-radius:8px; cursor:pointer;
     }
     .toggle button.active { background: rgba(255,255,255,.08); }
+
+    /* New: statements action row visible only in Transfers view */
+    .action-row {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; margin: 8px 0 6px 0;
+      padding: 8px 12px; border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .action-row .left { display:flex; align-items:center; gap:8px; }
+    .action-row .label { font-weight:600; color: var(--text-secondary); }
+    .action-row .buttons { display:flex; gap:8px; }
   `],
   template: `
     <div class="wrap">
@@ -101,6 +113,7 @@ import { DonutChartComponent } from '../components/donut-chart.component';
             <div class="sub">Month-to-date performance & activity</div>
           </div>
         </div>
+
         <div style="display:flex; align-items:center; gap:10px">
           <div class="toggle">
             <button [class.active]="mode() === 'transfers'" (click)="mode.set('transfers')">
@@ -110,6 +123,7 @@ import { DonutChartComponent } from '../components/donut-chart.component';
               <mat-icon style="font-size:18px">group</mat-icon>&nbsp;Users
             </button>
           </div>
+
           <button class="btn" (click)="refresh()" [disabled]="loading()">
             <mat-icon>refresh</mat-icon> Refresh
           </button>
@@ -150,7 +164,7 @@ import { DonutChartComponent } from '../components/donut-chart.component';
           </div>
         </div>
 
-        <!-- Big charts: Bar (trend) + Donut (composition) -->
+        <!-- Big charts -->
         <div class="big-grid">
           <mat-card class="card">
             <div class="card-inner" style="height:100%">
@@ -160,6 +174,22 @@ import { DonutChartComponent } from '../components/donut-chart.component';
                   <div class="sub small">Daily movement this month</div>
                 </div>
                 <span class="pill"><mat-icon style="font-size:18px">timeline</mat-icon> Live</span>
+              </div>
+
+              <!-- Statements action row (Transfers only) -->
+              <div *ngIf="mode() === 'transfers'" class="action-row">
+                <div class="left">
+                  <mat-icon>description</mat-icon>
+                  <span class="label">Statements</span>
+                </div>
+                <div class="buttons">
+                  <button class="btn" (click)="downloadCsv()" [disabled]="loading()">
+                    <mat-icon>download</mat-icon> CSV
+                  </button>
+                  <button class="btn" (click)="exportPdf()" [disabled]="loading()">
+                    <mat-icon>picture_as_pdf</mat-icon> PDF
+                  </button>
+                </div>
               </div>
 
               <div *ngIf="loading()" style="display:flex; align-items:center; gap:8px;">
@@ -172,7 +202,9 @@ import { DonutChartComponent } from '../components/donut-chart.component';
               </div>
 
               <div style="height:300px" *ngIf="!loading() && !error()">
-                <app-bar-chart [values]="trendSeries()"></app-bar-chart>
+                <div #chartHost>
+                  <app-bar-chart [values]="trendSeries()"></app-bar-chart>
+                </div>
               </div>
             </div>
           </mat-card>
@@ -198,7 +230,10 @@ import { DonutChartComponent } from '../components/donut-chart.component';
   `
 })
 export class AdminDashboardComponent implements OnInit {
-  private readonly base = 'http://localhost:8080/api/admin/metrics';
+  private readonly metricsBase = 'http://localhost:8080/api/admin/metrics';
+  private readonly statementsBase = 'http://localhost:8080/api/admin/statements';
+
+  @ViewChild('chartHost', { static: false }) chartHost?: ElementRef<HTMLElement>;
 
   loading = signal(false);
   error   = signal<string | null>(null);
@@ -244,59 +279,84 @@ export class AdminDashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void { this.fetchMetrics(); }
-
   refresh() { this.fetchMetrics(true); }
 
+  // --- Metrics: try year/month first; fallback to from/to if backend returns 400 ---
   private fetchMetrics(isRefresh = false) {
     const token = localStorage.getItem('token');
     if (!token) { this.router.navigate(['/login']); return; }
 
-    const { from, to } = this.currentMonthRange();
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
-    const params  = new HttpParams().set('from', from).set('to', to);
+    const { year, month } = this.currentYm();
 
     this.loading.set(true);
     this.error.set(null);
 
-    this.http.get<any>(this.base, { headers, params }).subscribe({
-      next: (res) => {
-        this.loading.set(false);
-        this.totalTransferred.set(Number(res?.totalTransferred || 0));
-        this.newUsers.set(Number(res?.newUsers || 0));
-        this.unusualCount.set(Number(res?.unusualActivity || 0));
-
-        const daily = Array.isArray(res?.dailyTransfers) ? res.dailyTransfers.map((n: any)=>Number(n)||0) : [];
-        this.seriesTransfers.set(daily.length ? daily : this.fakeSeries());
-
-        if (Array.isArray(res?.dailyUsers) && res.dailyUsers.length) {
-          this.seriesUsers.set(res.dailyUsers.map((n: any)=>Number(n)||0));
+    // 1) Prefer year/month
+    const ymParams = new HttpParams().set('year', String(year)).set('month', String(month));
+    this.http.get<any>(this.metricsBase, { headers, params: ymParams }).subscribe({
+      next: (res) => this.applyMetrics(res, isRefresh),
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 400) {
+          // 2) Fallback to from/to (OffsetDateTime)
+          const { fromOffset, toOffset } = this.currentMonthOffsets();
+          const ftParams = new HttpParams().set('from', fromOffset).set('to', toOffset);
+          this.http.get<any>(this.metricsBase, { headers, params: ftParams }).subscribe({
+            next: (res2) => this.applyMetrics(res2, isRefresh),
+            error: (err2) => {
+              this.loading.set(false);
+              this.toastHttp(err2, 'Failed to load admin metrics');
+              // keep UI usable with synthetic data
+              this.seriesTransfers.set(this.fakeSeries());
+              this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
+            }
+          });
         } else {
+          this.loading.set(false);
+          this.toastHttp(err, 'Failed to load admin metrics');
+          this.seriesTransfers.set(this.fakeSeries());
           this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
         }
-
-        if (isRefresh) this.snack.open('Metrics refreshed', 'Close', { duration: 1500 });
-      },
-      error: (err) => {
-        this.loading.set(false);
-        if (err?.status === 403) {
-          this.error.set('Forbidden (need ADMIN role).');
-          this.snack.open('Admin access required', 'Close', { duration: 2000 });
-          this.router.navigate(['/app']);
-          return;
-        }
-        this.error.set(err?.error?.message || 'Failed to load admin metrics');
-        this.seriesTransfers.set(this.fakeSeries());
-        this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
       }
     });
   }
 
-  private currentMonthRange() {
+  private applyMetrics(res: any, isRefresh: boolean) {
+    this.loading.set(false);
+    // Accept either numeric or string values
+    const toNum = (v: any) => (v == null ? 0 : Number(v));
+
+    this.totalTransferred.set(toNum(res?.totalTransferred));
+    this.newUsers.set(toNum(res?.newUsers));
+    this.unusualCount.set(toNum(res?.unusualActivity));
+
+    const daily = Array.isArray(res?.dailyTransfers) ? res.dailyTransfers.map((n: any)=>Number(n)||0) : [];
+    this.seriesTransfers.set(daily.length ? daily : this.fakeSeries());
+
+    if (Array.isArray(res?.dailyUsers) && res.dailyUsers.length) {
+      this.seriesUsers.set(res.dailyUsers.map((n: any)=>Number(n)||0));
+    } else {
+      this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
+    }
+
+    if (isRefresh) this.snack.open('Metrics refreshed', 'Close', { duration: 1500 });
+  }
+
+  // --- Month helpers ---
+  private currentYm() {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const fmt = (d: Date) => d.toISOString().slice(0,10);
-    return { from: fmt(start), to: fmt(end) };
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  }
+  private currentMonthOffsets() {
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1, 0, 0, 0));
+    const last  = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59));
+    const toOffsetStr = (d: Date) => {
+      // Produce OffsetDateTime format with milliseconds and +00:00
+      const iso = d.toISOString().replace('Z',''); // e.g. 2025-10-01T00:00:00.000
+      return `${iso}+00:00`;
+    };
+    return { fromOffset: toOffsetStr(first), toOffset: toOffsetStr(last) };
   }
 
   private fakeSeries(): number[] {
@@ -317,5 +377,76 @@ export class AdminDashboardComponent implements OnInit {
     const sum = arr.reduce((a,b)=>a+b,0) || 1;
     const factor = totalUsersMonthToDate / sum;
     return arr.map(v => Math.round(v * factor));
+  }
+
+  // ------- Statements actions (CSV / PDF) -------
+  downloadCsv() {
+    const token = localStorage.getItem('token');
+    if (!token) { this.router.navigate(['/login']); return; }
+
+    const { year, month } = this.currentYm();
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+
+    this.http.get(`${this.statementsBase}/${year}/${String(month).padStart(2,'0')}.csv`, {
+      headers, responseType: 'blob'
+    }).subscribe({
+      next: (blob) => this.saveBlob(blob, `statement-${year}-${String(month).padStart(2,'0')}.csv`),
+      error: (err) => this.toastHttpBlob(err, 'CSV export failed')
+    });
+  }
+
+  exportPdf() {
+    const token = localStorage.getItem('token');
+    if (!token) { this.router.navigate(['/login']); return; }
+
+    const { year, month } = this.currentYm();
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+
+    const chartPngDataUrl = this.getChartPngDataUrl();
+    const body = { year, month, chartPngDataUrl };
+
+    this.http.post(`${this.statementsBase}/pdf`, body, { headers, responseType: 'blob' }).subscribe({
+      next: (blob) => this.saveBlob(blob, `statement-${year}-${String(month).padStart(2,'0')}.pdf`),
+      error: (err) => this.toastHttpBlob(err, 'PDF export failed')
+    });
+  }
+
+  private saveBlob(blob: Blob, filename: string) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  private async toastHttpBlob(err: HttpErrorResponse, fallbackMsg: string) {
+    try {
+      const text = await (err?.error instanceof Blob ? err.error.text() : Promise.resolve(''));
+      this.snack.open(text || fallbackMsg, 'Close', { duration: 3000 });
+    } catch {
+      this.snack.open(fallbackMsg, 'Close', { duration: 3000 });
+    }
+  }
+
+  private toastHttp(err: HttpErrorResponse, fallbackMsg: string) {
+    const msg = (err?.error && typeof err.error === 'string') ? err.error
+              : err?.error?.message || err?.message || fallbackMsg;
+    this.snack.open(msg, 'Close', { duration: 3000 });
+  }
+
+  /** Try to snapshot the bar chart’s canvas (optional). */
+  private getChartPngDataUrl(): string | null {
+    try {
+      const host = this.chartHost?.nativeElement;
+      if (!host) return null;
+      const canvas = host.querySelector('canvas') as HTMLCanvasElement | null;
+      if (!canvas) return null;
+      return canvas.toDataURL('image/png');
+    } catch {
+      return null;
+    }
   }
 }

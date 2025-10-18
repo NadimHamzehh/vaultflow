@@ -59,11 +59,7 @@ import { DeviceManagementComponent } from '../components/device-management.compo
       animation: cardFade 0.9s ease;
     }
 
-    .panel {
-      display:grid;
-      grid-template-columns:1.1fr .9fr;
-      gap:1.2rem;
-    }
+    .panel { display:grid; grid-template-columns:1.1fr .9fr; gap:1.2rem; }
     @media(max-width:860px){ .panel{ grid-template-columns:1fr; } }
 
     .btn-primary {
@@ -116,6 +112,9 @@ import { DeviceManagementComponent } from '../components/device-management.compo
     .tips ul{margin:.6rem 0 0 1.1rem;color:#aab1c1;font-size:.95rem;}
     .tips li{margin-bottom:.35rem;}
 
+    .ocr-row { display:flex; align-items:center; gap:.6rem; margin:.2rem 0 .8rem; }
+    .ocr-row input[type="file"] { color:#cbd5e1; max-width:280px; }
+
     @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
     @keyframes slideIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
     @keyframes cardFade{from{opacity:0;transform:translateY(15px);}to{opacity:1;transform:translateY(0);}}
@@ -157,6 +156,13 @@ import { DeviceManagementComponent } from '../components/device-management.compo
           </button>
         </div>
 
+        <!-- Receipt OCR -->
+        <div class="ocr-row">
+          <mat-icon>receipt_long</mat-icon>
+          <input type="file" accept="image/*" (change)="onReceipt($event)">
+          <span class="muted small">Upload a receipt to auto-fill the amount.</span>
+        </div>
+
         <form [formGroup]="form" (ngSubmit)="submit()" autocomplete="off">
           <mat-form-field appearance="outline" class="pretty-field" style="width:100%;margin-bottom:1rem;">
             <mat-label>Recipient account number</mat-label>
@@ -166,7 +172,7 @@ import { DeviceManagementComponent } from '../components/device-management.compo
 
           <mat-form-field appearance="outline" class="pretty-field" style="width:100%;margin-bottom:1rem;">
             <mat-label>Amount (USD)</mat-label>
-            <input matInput type="number" step="5" min="5" formControlName="amount" placeholder="">
+            <input matInput type="number" step="0.01" min="5" formControlName="amount" placeholder="">
             <mat-error *ngIf="a.invalid && a.touched">Enter a valid amount (min $5)</mat-error>
           </mat-form-field>
 
@@ -215,7 +221,7 @@ export class TransferComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       recipientAccountNumber: this.fb.control<string>('', [Validators.required, Validators.minLength(6)]),
-      amount: this.fb.control<number | null>(null, [Validators.required, Validators.min(0.01)])
+      amount: this.fb.control<number | null>(null, [Validators.required, Validators.min(5)]) // min $5 to match UI tips
     });
     this.r = this.form.controls['recipientAccountNumber'] as FormControl<string>;
     this.a = this.form.controls['amount'] as FormControl<number>;
@@ -235,6 +241,46 @@ export class TransferComponent implements OnInit {
     }).subscribe({ next: () => {}, error: () => {} });
   }
 
+  // ------- Receipt OCR upload -------
+  onReceipt(ev: Event) {
+    const file = (ev.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      this.snack.open('Not authenticated', 'Close', { duration: 2000 });
+      return;
+    }
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    const form = new FormData();
+    form.append('file', file);
+
+    this.http.post<any>('http://localhost:8080/api/receipts/ocr', form, { headers }).subscribe({
+      next: (data) => {
+        if (data?.amount != null && !isNaN(+data.amount)) {
+          this.a.setValue(Number(data.amount));
+          this.a.markAsDirty();
+          this.snack.open(`Detected $${Number(data.amount).toFixed(2)} ${data?.merchant ? 'at '+data.merchant : ''}`, 'Close', { duration: 2500 });
+        } else {
+          this.snack.open('Couldn’t detect an amount from the receipt', 'Close', { duration: 2500 });
+        }
+      },
+      error: (err) => {
+        const msg = err?.error?.error || 'OCR failed';
+        this.snack.open(msg, 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  private uuidv4(): string {
+    // Lightweight UUID for idempotency keys
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   submit(): void {
     if (this.form.invalid || this.loading()) return;
 
@@ -244,9 +290,14 @@ export class TransferComponent implements OnInit {
       return;
     }
 
-    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    const idempKey = this.uuidv4();
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`,
+      'X-Idempotency-Key': idempKey
+    });
+
     const body = {
-      recipientAccountNumber: this.r.value.trim(),
+      recipientAccountNumber: (this.r.value || '').trim(),
       amount: Number(this.a.value),
       securityChecksum: this.securityChecks
     };

@@ -163,7 +163,7 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
           <form *ngIf="showChange" [formGroup]="pwdForm" (ngSubmit)="changePassword()" style="margin-top:.8rem;">
             <mat-form-field appearance="outline" class="pretty" style="width:100%; margin-bottom:.6rem;">
               <mat-label>Current password</mat-label>
-              <input matInput [type]="showCurrent? 'text':'password'" formControlName="currentPassword" placeholder="Enter current password">
+              <input matInput [type]="showCurrent? 'text':'password'" formControlName="currentPassword" placeholder="">
               <button mat-icon-button type="button" matSuffix (click)="showCurrent=!showCurrent">
                 <mat-icon>{{ showCurrent ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
@@ -171,7 +171,7 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
 
             <mat-form-field appearance="outline" class="pretty" style="width:100%; margin-bottom:.6rem;">
               <mat-label>New password</mat-label>
-              <input matInput [type]="showNew? 'text':'password'" formControlName="newPassword" placeholder="At least 6 characters">
+              <input matInput [type]="showNew? 'text':'password'" formControlName="newPassword" placeholder="">
               <button mat-icon-button type="button" matSuffix (click)="showNew=!showNew">
                 <mat-icon>{{ showNew ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
@@ -179,7 +179,7 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
 
             <mat-form-field appearance="outline" class="pretty" style="width:100%; margin-bottom:.2rem;">
               <mat-label>Confirm new password</mat-label>
-              <input matInput [type]="showConfirm? 'text':'password'" formControlName="confirmNewPassword" placeholder="Repeat new password">
+              <input matInput [type]="showConfirm? 'text':'password'" formControlName="confirmNewPassword" placeholder="">
               <button mat-icon-button type="button" matSuffix (click)="showConfirm=!showConfirm">
                 <mat-icon>{{ showConfirm ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
@@ -191,7 +191,7 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
               <mat-icon>shield</mat-icon>
               <mat-form-field appearance="outline" class="pretty" style="flex:1;">
                 <mat-label>2FA code</mat-label>
-                <input matInput maxlength="6" formControlName="code" placeholder="123456" inputmode="numeric">
+                <input matInput maxlength="6" formControlName="code" placeholder="" inputmode="numeric">
               </mat-form-field>
             </div>
 

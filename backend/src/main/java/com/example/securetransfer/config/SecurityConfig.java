@@ -1,3 +1,4 @@
+// src/main/java/com/example/securetransfer/config/SecurityConfig.java
 package com.example.securetransfer.config;
 
 import com.example.securetransfer.repo.UserRepository;
@@ -33,84 +34,97 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${vaultflow.cors.allowed-origins:http://localhost:4200}")
-    private String allowedOrigins;
+  @Value("${vaultflow.cors.allowed-origins:http://localhost:4200}")
+  private String allowedOrigins;
 
-    @Bean
-    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+  @Bean
+  PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
-    @Bean
-    UserDetailsService userDetailsService(UserRepository users) {
-        return username -> users.findByUsername(username)
-            .map(u -> org.springframework.security.core.userdetails.User
-                .withUsername(u.getUsername())
-                .password(u.getPassword())
-                .roles("USER") // JWT claims still carry actual roles for API checks
-                .build())
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-    }
+  @Bean
+  UserDetailsService userDetailsService(UserRepository users) {
+    return username -> users.findByUsername(username)
+      .map(u -> org.springframework.security.core.userdetails.User
+        .withUsername(u.getUsername())
+        .password(u.getPassword())
+        // Baseline role; API uses JWT roles for fine-grained checks
+        .roles("USER")
+        .build())
+      .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+  }
 
-    @Bean
-    AuthenticationManager authenticationManager(UserDetailsService uds, PasswordEncoder enc) {
-        var provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(uds);
-        provider.setPasswordEncoder(enc);
-        return new ProviderManager(provider);
-    }
+  @Bean
+  AuthenticationManager authenticationManager(UserDetailsService uds, PasswordEncoder enc) {
+    var provider = new DaoAuthenticationProvider();
+    provider.setUserDetailsService(uds);
+    provider.setPasswordEncoder(enc);
+    return new ProviderManager(provider);
+  }
 
-    @Bean
-    JwtAuthFilter jwtAuthFilter(JwtService jwtService, UserRepository users) {
-        return new JwtAuthFilter(jwtService, users);
-    }
+  @Bean
+  JwtAuthFilter jwtAuthFilter(JwtService jwtService, UserRepository users) {
+    return new JwtAuthFilter(jwtService, users);
+  }
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        var cfg = new CorsConfiguration();
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
-            .map(String::trim).filter(s -> !s.isBlank()).collect(Collectors.toList());
-        cfg.setAllowedOrigins(origins);
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization","Content-Type"));
-        cfg.setExposedHeaders(List.of("Authorization"));
-        cfg.setAllowCredentials(true);
-        var src = new UrlBasedCorsConfigurationSource();
-        src.registerCorsConfiguration("/**", cfg);
-        return src;
-    }
+  @Bean
+  CorsConfigurationSource corsConfigurationSource() {
+    var cfg = new CorsConfiguration();
+    List<String> origins = Arrays.stream(allowedOrigins.split(","))
+      .map(String::trim)
+      .filter(s -> !s.isBlank())
+      .collect(Collectors.toList());
+    cfg.setAllowedOrigins(origins);
+    cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+    cfg.setAllowedHeaders(List.of(
+      "Authorization",
+      "Content-Type",
+      "X-Idempotency-Key"   // allow idempotency header for transfers
+    ));
+    cfg.setExposedHeaders(List.of("Authorization"));
+    cfg.setAllowCredentials(true);
 
-    @Bean @Order(0)
-    SecurityFilterChain actuatorChain(HttpSecurity http) throws Exception {
-        return http
-            .securityMatcher("/actuator/health")
-            .csrf(csrf -> csrf.disable())
-            .cors(Customizer.withDefaults())
-            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-            .build();
-    }
+    var src = new UrlBasedCorsConfigurationSource();
+    src.registerCorsConfiguration("/**", cfg);
+    return src;
+  }
 
-    @Bean @Order(1)
-    SecurityFilterChain apiChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
-        return http
-            .securityMatcher("/api/**")
-            .csrf(csrf -> csrf.disable())
-            .cors(Customizer.withDefaults())
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+  /** Health endpoint (no auth, highest priority). */
+  @Bean @Order(0)
+  SecurityFilterChain actuatorChain(HttpSecurity http) throws Exception {
+    return http
+      .securityMatcher("/actuator/health")
+      .csrf(csrf -> csrf.disable())
+      .cors(Customizer.withDefaults())
+      .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+      .build();
+  }
 
-                // Public auth endpoints
-                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+  /** API security (JWT, stateless). */
+  @Bean @Order(1)
+  SecurityFilterChain apiChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
+    return http
+      .securityMatcher("/api/**")
+      .csrf(csrf -> csrf.disable())
+      .cors(Customizer.withDefaults())
+      .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .authorizeHttpRequests(auth -> auth
+        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 2FA verification: ONLY temp tokens with ROLE_PRE_AUTH may call
-                .requestMatchers("/api/auth/2fa/**").hasRole("PRE_AUTH")
+        // Public auth endpoints
+        .requestMatchers(HttpMethod.POST,
+          "/api/auth/login",
+          "/api/auth/register",
+          // Allow 2FA verify so the controller can read the temp token
+          "/api/auth/2fa/**"
+        ).permitAll()
 
-                // Admin area
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+        // Admin area
+        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // Everything else requires a full session (USER/ADMIN)
-                .anyRequest().hasAnyRole("USER","ADMIN")
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
-    }
+        // Everything else requires a valid access token (USER/ADMIN)
+        .anyRequest().hasAnyRole("USER","ADMIN")
+      )
+      // Parse JWTs (both temp and access) for all /api/** requests
+      .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+      .build();
+  }
 }
