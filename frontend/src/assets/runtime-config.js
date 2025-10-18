@@ -1,1 +1,1 @@
-window.__env = { apiBaseUrl: 'https://vaultflowbackend.onrender.com' };
+window.__env = { apiBaseUrl: 'https://vaultflowbackend.onrender.com/api' };
