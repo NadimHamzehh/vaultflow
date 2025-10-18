@@ -7,6 +7,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { environment } from '../../environments/environment';
 
 @Component({
   standalone: true,
@@ -103,7 +104,7 @@ import { MatInputModule } from '@angular/material/input';
   `
 })
 export class SecurityComponent implements OnInit {
-  private readonly base = 'http://localhost:8080/api/2fa';
+  private readonly base = `${environment.apiBaseUrl}/2fa`;
 
   enabled   = signal(false);
   enrolling = signal(false);

@@ -11,6 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { BarChartComponent } from '../components/bar-chart.component';
 import { DonutChartComponent } from '../components/donut-chart.component';
+import { environment } from '../../environments/environment';
 
 type TransferRow = {
   date: string;
@@ -290,8 +291,8 @@ type TransferRow = {
   `
 })
 export class AdminDashboardComponent implements OnInit {
-  private readonly metricsBase = 'http://localhost:8080/api/admin/metrics';
-  private readonly statementsBase = 'http://localhost:8080/api/admin/statements';
+  private readonly metricsBase = `${environment.apiBaseUrl}/admin/metrics`;
+  private readonly statementsBase = `${environment.apiBaseUrl}/admin/statements`;
 
   @ViewChild('chartHost', { static: false }) chartHost?: ElementRef<HTMLElement>;
 

@@ -3,6 +3,7 @@ import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { environment } from '../../environments/environment';
 
 @Component({
   standalone: true,
@@ -59,7 +60,7 @@ import { MatChipsModule } from '@angular/material/chips';
 })
 export class HistoryComponent implements OnInit {
   txns = signal<any[]>([]);
-  base = 'http://localhost:8080/api/me/transactions';
+  base = `${environment.apiBaseUrl}/me/transactions`;
 
   constructor(private http: HttpClient) {}
 

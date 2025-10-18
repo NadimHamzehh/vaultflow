@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://vaultflowbackend.onrender.com'
+  apiBaseUrl: 'https://vaultflowbackend.onrender.com/api'
 };
 

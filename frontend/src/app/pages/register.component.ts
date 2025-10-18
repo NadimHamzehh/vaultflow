@@ -19,6 +19,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
+import { environment } from '../../environments/environment';
 
 const passwordMatchValidator: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
   const pass = group.get('password')?.value;
@@ -207,7 +208,7 @@ export class RegisterComponent {
   get cp() { return this.form.controls['confirmPassword'] as FormControl<string>; }
   get b()  { return this.form.controls['initialBalance'] as FormControl<number>; }
 
-  readonly base = 'http://localhost:8080/api/auth';
+  readonly base = `${environment.apiBaseUrl}/auth`;
   loading = false;
   show = false;
 

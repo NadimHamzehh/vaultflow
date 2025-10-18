@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 // Import MatSnackBar for a better user experience when copying the account number
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { environment } from '../../environments/environment';
 
 type Account = { username: string; accountNumber: string; balance: number };
 type Txn = { id: number; senderAccount: string; recipientAccount: string; amount: number; createdAt: string };
@@ -245,8 +246,8 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
   `
 })
 export class DashboardComponent implements OnInit {
-  private apiAccount = 'http://localhost:8080/api/me/account';
-  private apiTxns = 'http://localhost:8080/api/me/transactions';
+  private apiAccount = `${environment.apiBaseUrl}/me/account`;
+  private apiTxns = `${environment.apiBaseUrl}/me/transactions`;
 
   account: Account | null = null;
   displayNameText = 'User';

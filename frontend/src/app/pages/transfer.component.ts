@@ -13,6 +13,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { ActivityService } from '../services/activity.service';
 import { DeviceManagementComponent } from '../components/device-management.component';
+import { environment } from '../../environments/environment';
 
 @Component({
   standalone: true,
@@ -199,7 +200,7 @@ export class TransferComponent implements OnInit {
   r!: FormControl<string>;
   a!: FormControl<number>;
 
-  base = 'http://localhost:8080/api/transfers';
+  base = `${environment.apiBaseUrl}/transfers`;
   loading = signal(false);
   status = signal<'success' | 'error' | null>(null);
   lastError = signal<string>('');
@@ -250,7 +251,7 @@ export class TransferComponent implements OnInit {
     const form = new FormData();
     form.append('file', file);
 
-    this.http.post<any>('http://localhost:8080/api/receipts/ocr', form, { headers }).subscribe({
+    this.http.post<any>(`${environment.apiBaseUrl}/receipts/ocr`, form, { headers }).subscribe({
       next: (data) => {
         if (data?.amount != null && !isNaN(+data.amount)) {
           this.a.setValue(Number(data.amount));

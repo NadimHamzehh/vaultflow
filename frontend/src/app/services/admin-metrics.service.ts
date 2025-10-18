@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 export interface AdminMetrics {
   totalTransferred: number;
@@ -13,7 +14,7 @@ export interface AdminMetrics {
 @Injectable({ providedIn: 'root' })
 export class AdminMetricsService {
   private http = inject(HttpClient);
-  private base = 'http://localhost:8080/api/admin/metrics';
+  private base = `${environment.apiBaseUrl}/admin/metrics`;
 
   private authHeaders(): HttpHeaders {
     const token = localStorage.getItem('token') || '';

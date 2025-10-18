@@ -10,6 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { environment } from '../../environments/environment';
 
 type AccountDto = { username: string; email: string; accountNumber: string; balance: number };
 
@@ -217,8 +218,8 @@ type AccountDto = { username: string; email: string; accountNumber: string; bala
   `
 })
 export class AccountComponent implements OnInit {
-  private meAccountUrl = 'http://localhost:8080/api/me/account';
-  private changeUrl    = 'http://localhost:8080/api/me/security/password/change';
+  private meAccountUrl = `${environment.apiBaseUrl}/me/account`;
+  private changeUrl    = `${environment.apiBaseUrl}/me/security/password/change`;
 
   username = '';
   email = '';

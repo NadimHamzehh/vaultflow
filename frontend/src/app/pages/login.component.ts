@@ -17,6 +17,7 @@ import { MatCardModule }       from '@angular/material/card';
 import { MatIconModule }       from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { environment } from '../../environments/environment';
 
 type LoginSuccess = { token: string };
 type Login2FA = { requires2fa: true; tempToken: string };
@@ -231,7 +232,7 @@ type Login2FA = { requires2fa: true; tempToken: string };
   `
 })
 export class LoginComponent {
-  private readonly base = 'http://localhost:8080/api/auth';
+  private readonly base = `${environment.apiBaseUrl}/auth`;
 
   form!: FormGroup;
   email!: FormControl<string>;

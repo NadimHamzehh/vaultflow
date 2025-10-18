@@ -1,10 +1,10 @@
 // src/app/services/receipt-ocr.service.ts (new)
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-
+import { environment } from '../../environments/environment';
 @Injectable({ providedIn: 'root' })
 export class ReceiptOcrService {
-  private base = 'http://localhost:8080/api/receipts/ocr';
+  private base = `${environment.apiBaseUrl}/receipts/ocr`;
   constructor(private http: HttpClient) {}
 
   private headers(): HttpHeaders {

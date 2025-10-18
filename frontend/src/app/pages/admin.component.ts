@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
+import { environment } from '../../environments/environment';
 
 @Component({
   standalone: true,
@@ -27,7 +28,7 @@ import { MatCardModule } from '@angular/material/card';
 })
 export class AdminComponent implements OnInit {
   accounts: any[] = [];
-  base = 'http://localhost:8080/api/admin/accounts';
+  base = `${environment.apiBaseUrl}/admin/accounts`;
 
   constructor(private http: HttpClient) {}
 

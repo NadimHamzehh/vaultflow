@@ -1,10 +1,11 @@
 // src/app/services/admin-statements.service.ts (new)
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AdminStatementsService {
-  private base = 'http://localhost:8080/api/admin/statements';
+  private base = `${environment.apiBaseUrl}/admin/statements`;
   constructor(private http: HttpClient) {}
 
   headers(): HttpHeaders {
