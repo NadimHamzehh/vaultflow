@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiBaseUrl: 'https://vaultflowbackend.onrender.com'
+  apiBaseUrl: 'http://localhost:8080'
 };
