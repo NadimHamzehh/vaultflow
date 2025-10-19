@@ -43,7 +43,40 @@ Admin:
 - CSRF disabled for API (stateless); CORS restricted to FE origin via env.
 - Transfer is atomic with pessimistic locks and server-side validation.
 
-## Local Dev
+# VaultFlow — Frameworks & Libraries
+
+A quick, organized inventory of the technologies used across the app.
+
+---
+
+## 🧭 Frontend
+
+- **Angular 20** — SPA framework (signals, standalone components, router, HttpClient).
+- **Angular Material** — UI components (MatCard, MatFormField, MatInput, MatIcon, MatButton, MatSnackBar, MatProgressSpinner, MatChips, etc.).
+- **RxJS** — reactive streams used by Angular HttpClient and routing.
+- **TypeScript** — type-safe application code.
+- **Fuse.js** — lightweight fuzzy search (powering the Support “FAQ” widget).
+- **Google Fonts** — *Inter*, *Space Grotesk* (styling only).
+
+> Internal UI: custom `<app-bar-chart>` & `<app-donut-chart>` components (no extra charting lib exposed).
+
+---
+
+## 🔧 Backend
+
+- **Spring Boot 3** — application framework & runtime.
+- **Spring Web** — REST controllers.
+- **Spring Security** — authentication/authorization (JWT + BCrypt).
+- **Spring Data JPA (Hibernate)** — ORM & repositories.
+- **Jakarta Bean Validation** — DTO validation.
+- **PostgreSQL Driver** — JDBC connector for Postgres/Supabase.
+- **JJWT** — JSON Web Token issuance & verification.
+- **Bucket4J** — rate limiting.
+- **Caffeine** — in-memory caching.
+- **BCrypt (spring-security-crypto)** — password hashing.
+- **ZXing** *(Optional for 2FA QR generation)*  
+
+# Local Dev
 ```bash
 1) Prereqs
 -Node ≥ 18 (LTS 18/20 OK) and npm ≥ 9
@@ -53,24 +86,24 @@ Admin:
 -Supabase (hosted Postgres) OR a local Postgres instance (easiest for offline dev) / (Optional) psql CLI for running SQL
 ```
 
-# Backend
+## Backend
 ```bash
 cd backend
 ./mvnw spring-boot:run (might not run because of the CORS that are currently attached to the render)
 ```
-# Frontend
+## Frontend
 ```bash
 cd frontend
 npm ci
 npm run start
 ```
-# Database
+## Database
 Personally containerized it in docker 
 ```bash
 docker exec -it vaultflow-db-1 psql -U secureuser -d securedb
 ```
 
-## testing procedure
+# Testing Procedure
 - register a new user, log in, note your account number/balance on Overview
 - click the “?” support bubble and ask “when do you close” and “how do I transfer money” 
 - log in as ibc1@gmail.com and transfer money to ibc2@gmail.com (ACCT nb should be retrieved inside the account) 
