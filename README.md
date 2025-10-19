@@ -11,8 +11,9 @@ A secure demo app for authenticated funds transfers. Users log in, view balance,
 Users:
 - ibc1@gmail.com / `Ibc123!` — ACCT NB : ACCT230975 — balance 1000.00
 - ibc2@gmail.com / `Ibc321!` — ACCT NB : ACCT683143 — balance 500.00
+
 Admin:
-- admin@gmail.com / `admin123` — Acct NB: admin#
+ - admin@gmail.com / `admin123` — Acct NB: admin#
 
 ## Tech Stack
 - **Frontend**: Angular 20, Material, Http Interceptor, Route Guards
