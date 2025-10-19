@@ -117,7 +117,7 @@ import { environment } from '../../environments/environment';
         </div>
         <div>
           <label class="small" for="amt">Amount</label>
-          <input id="amt" class="x-input" type="number" step="0.01" min="0.01" [(ngModel)]="amount"/>
+          <input id="amt" class="x-input" type="number" step="1" min="1" [(ngModel)]="amount"/>
         </div>
         <div>
           <label class="small" for="ref">Reference (optional)</label>

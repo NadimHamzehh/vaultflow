@@ -168,8 +168,8 @@ import { environment } from '../../environments/environment';
 
           <mat-form-field appearance="outline" class="pretty-field" style="width:100%;margin-bottom:1rem;">
             <mat-label>Amount (USD)</mat-label>
-            <input matInput type="number" step="0.01" min="5" formControlName="amount" placeholder="">
-            <mat-error *ngIf="a.invalid && a.touched">Enter a valid amount (min $5)</mat-error>
+            <input matInput type="number" min="1" formControlName="amount" placeholder="">
+            <mat-error *ngIf="a.invalid && a.touched">Enter a valid amount (min $1)</mat-error>
           </mat-form-field>
 
           <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
@@ -329,3 +329,4 @@ export class TransferComponent implements OnInit {
     });
   }
 }
+  
