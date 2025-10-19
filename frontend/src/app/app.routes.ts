@@ -29,7 +29,7 @@ export const routes: Routes = [
 
   // Admin (standalone)
   { path: 'admin', component: AdminDashboardComponent, canActivate: [adminGuard] },
-
+  { path: 'admin/transfer', component: TransferComponent },
   // App (explicit top-level routes; prevents child-route mounting issues)
   { path: 'app', pathMatch: 'full', redirectTo: 'app/dashboard' },
   { path: 'app/dashboard', component: DashboardComponent, canActivate: [adminRedirectGuard] },

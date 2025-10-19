@@ -180,10 +180,11 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
             <mat-error *ngIf="form.hasError('mismatch') && cp.touched">Passwords do not match</mat-error>
           </mat-form-field>
 
-          
-
           <button class="btn" type="submit" [disabled]="form.invalid || loading">
-            <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
+            <!-- Centered spinner while loading -->
+            <span *ngIf="loading" style="display:flex; width:100%; justify-content:center;">
+              <mat-spinner diameter="18"></mat-spinner>
+            </span>
             <span *ngIf="!loading">Create account</span>
           </button>
 

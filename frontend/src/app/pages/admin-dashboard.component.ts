@@ -420,7 +420,23 @@ export class AdminDashboardComponent implements OnInit {
 
     const toNum = (v: any) => (v == null ? 0 : Number(v));
     const total = toNum(res?.totalTransferred ?? res?.totalAmount ?? res?.transfers?.total);
-    const users = toNum(res?.newUsers ?? res?.newUsersCount ?? res?.users?.new);
+
+    // ----- FIX: broader key support for "new users" (camelCase & snake_case + common nestings) -----
+    const users = toNum(
+      res?.newUsers ??
+      res?.new_users ??
+      res?.newUsersCount ??
+      res?.new_users_count ??
+      res?.usersNew ??
+      res?.users_new ??
+      res?.users?.new ??
+      res?.users?.newUsers ??
+      res?.users?.new_users ??
+      res?.metrics?.users?.new ??
+      res?.metrics?.new_users
+    );
+    // ----------------------------------------------------------------------------------------------
+
     const unusual = toNum(res?.unusualActivity ?? res?.unusual ?? res?.alerts);
 
     this.totalTransferred.set(total);
@@ -432,6 +448,7 @@ export class AdminDashboardComponent implements OnInit {
       (Array.isArray(res?.transfersDaily) && res.transfersDaily) ||
       (Array.isArray(res?.transfers?.daily) && res.transfers.daily) ||
       [];
+
     const tSeries = tDailySrc.map((n: any) => Number(n) || 0);
     if (tSeries.length) {
       this.seriesTransfers.set(tSeries);
@@ -441,12 +458,15 @@ export class AdminDashboardComponent implements OnInit {
       this.seriesTransfers.set(this.fakeSeries());
     }
 
+    // ----- FIX: broader key support for daily users series (snake_case variants) -----
     const uDailySrcList = [
       res?.dailyUsers, res?.usersDaily, res?.dailyNewUsers, res?.newUsersDaily,
-      res?.users?.daily
+      res?.users?.daily, res?.users?.dailyNew, res?.users?.daily_new,
+      res?.daily_users, res?.users_daily, res?.daily_new_users, res?.new_users_daily,
+      res?.metrics?.users?.daily, res?.metrics?.daily_users
     ];
-    const uDaily =
-      uDailySrcList.find((arr: any) => Array.isArray(arr)) || [];
+    // --------------------------------------------------------------------------------
+    const uDaily = uDailySrcList.find((arr: any) => Array.isArray(arr)) || [];
     if (uDaily.length) {
       const series = uDaily.map((n: any) => Number(n) || 0);
       this.seriesUsers.set(series);

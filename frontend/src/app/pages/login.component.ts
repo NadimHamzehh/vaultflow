@@ -85,7 +85,7 @@ type Login2FA = { requires2fa: true; tempToken: string };
     .subtitle {
       color: var(--muted);
       font-size: 1.05rem;
-      margin: 0 0 1.4rem 0;
+      margin-bottom: 1.4rem;
     }
 
     mat-card {

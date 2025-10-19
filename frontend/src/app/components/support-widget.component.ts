@@ -27,6 +27,21 @@ type ChatMsg = { role: 'user' | 'bot'; text: string };
       border: 1px solid var(--border-color);
       border-radius: 14px; box-shadow: 0 28px 80px rgba(0,0,0,.55);
       padding: 12px; transform-origin: bottom right;
+      /* NEW: delightful open animation */
+      animation: vfSupportPopIn .38s cubic-bezier(.2,.8,.2,1) both;
+      will-change: transform, opacity, filter;
+    }
+
+    /* NEW: keyframes for the improved open animation */
+    @keyframes vfSupportPopIn {
+      0%   { opacity: 0; transform: translateY(12px) scale(.96); filter: blur(6px) saturate(.9); }
+      60%  { opacity: 1; transform: translateY(-2px) scale(1.02); filter: blur(0) saturate(1); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    /* Respect reduced-motion preferences */
+    @media (prefers-reduced-motion: reduce) {
+      .panel { animation: none; }
     }
 
     .header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
