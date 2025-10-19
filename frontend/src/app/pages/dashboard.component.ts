@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
@@ -6,7 +6,6 @@ import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-// Import MatSnackBar for a better user experience when copying the account number
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 
@@ -16,8 +15,6 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
 @Component({
   standalone: true,
   selector: 'app-dashboard',
-  // Added MatSnackBarModule to imports, though it's typically provided at the root/module level
-  // Since it's a standalone component, we need to ensure all required modules are here.
   imports: [CommonModule, FormsModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule],
   styles: [`
     /* keep styles very small & safe; anything fancy should live in global styles.css */
@@ -69,7 +66,11 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
   template: `
   <section style="width:100%;border-bottom:1px solid var(--border-color);background:linear-gradient(180deg,var(--bg-01),var(--bg-02));">
     <div class="app-container" style="padding:2rem 1rem;">
-      <div class="grid-hero">
+      <div
+        class="grid-hero"
+        [style.gridTemplateColumns]="isMobile ? '1fr' : '1.2fr .8fr'"
+        [style.rowGap]="isMobile ? '1rem' : null"
+      >
         <div>
           <div class="h1">
             Explore your <span style="background:var(--premium-gradient);-webkit-background-clip:text;background-clip:text;color:transparent;">money</span> with confidence
@@ -77,15 +78,15 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
           <div class="small" style="margin-top:.6rem;color:var(--text-secondary);max-width:62ch;">
             Secure, modern banking. Real-time balances, instant transfers, and a clear view of your finances.
           </div>
-          <div style="display:flex;gap:.6rem;margin-top:1rem;flex-wrap:wrap;">
-            <a class="btn-primary" routerLink="/app/transfer"><mat-icon>send</mat-icon> New Transfer</a>
-            <a class="btn" routerLink="/app/history"><mat-icon>history</mat-icon> History</a>
-            <a class="btn" routerLink="/app/security"><mat-icon>shield</mat-icon> Security</a>
-          </div>
+          
         </div>
 
         <div style="display:flex;justify-content:center;">
-          <div class="virtual-card" aria-label="Your virtual card">
+          <div
+            class="virtual-card"
+            aria-label="Your virtual card"
+            [style.aspectRatio]="isMobile ? '16 / 10' : null"
+          >
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <div style="font-weight:800;letter-spacing:.4px;">VaultFlow</div>
               <div style="width:44px;height:32px;border-radius:6px;background:linear-gradient(180deg,#e2e2e2,#b8b8b8);"></div>
@@ -115,9 +116,17 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
   </section>
 
   <section class="app-container" style="padding:1rem 1rem 3rem;">
-    <div class="grid-main">
+    <div
+      class="grid-main"
+      [style.gridTemplateColumns]="isMobile ? '1fr' : '1.2fr .8fr'"
+      [style.rowGap]="isMobile ? '1rem' : null"
+    >
       <div>
-        <div class="grid-3">
+        <div
+          class="grid-3"
+          [style.gridTemplateColumns]="isMobile ? '1fr' : 'repeat(3, 1fr)'"
+          [style.rowGap]="isMobile ? '.8rem' : null"
+        >
           <div class="card">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;">
               <div>
@@ -196,8 +205,6 @@ type Txn = { id: number; senderAccount: string; recipientAccount: string; amount
             </div>
           </div>
         </div>
-
-        <!-- Shortcuts card removed as requested -->
       </div>
     </div>
   </section>
@@ -260,10 +267,14 @@ export class DashboardComponent implements OnInit {
   chatMessages: string[] = [];
   chatDraft = '';
 
-  // Injected MatSnackBar
+  // responsive flag (phones/tablets)
+  isMobile = false;
+
   constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
 
   ngOnInit(): void {
+    this.updateViewport();
+
     const token = localStorage.getItem('token');
     if (!token) return;
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
@@ -279,55 +290,48 @@ export class DashboardComponent implements OnInit {
 
     this.http.get<Txn[]>(this.apiTxns, { headers }).subscribe({
       next: (list) => {
-        // Ensure the response is an array before assignment
         this.txns = Array.isArray(list) ? list : [];
         const today = new Date().toDateString();
-        // The logic for transfersToday is correct, assuming 'createdAt' is a valid date string
         this.transfersToday = this.txns.filter(t => new Date(t.createdAt).toDateString() === today).length;
       },
       error: (e) => console.error('Error fetching transactions:', e)
     });
   }
 
+  @HostListener('window:resize')
+  onResize() { this.updateViewport(); }
+
+  private updateViewport() {
+    this.isMobile = window.innerWidth <= 980; // match the app’s breakpoint
+  }
+
   private toTitle(n: string): string {
     if (!n) return 'User';
-    // The original regex is correct for title-casing words
     return n.replace(/\w\S*/g, s => s[0].toUpperCase() + s.slice(1).toLowerCase());
   }
 
   private maskAccount(raw: string): string {
     if (!raw) return 'ACCT••••••';
-    // This logic is complex but assumes a pattern like 'ACCT12345678' -> 'ACCT •••••• 78'
     const prefix = raw.replace(/[^A-Za-z].*$/, '');
     const digits = raw.replace(/^[A-Za-z]+/, '');
     if (digits.length <= 2) return raw;
     const star = '•'.repeat(Math.max(0, digits.length - 2));
-    // Fixed: added logic to handle cases where there is no alphabetic prefix
     const prefixSpace = prefix ? prefix + ' ' : '';
     return `${prefixSpace}${star} ${digits.slice(-2)}`;
   }
 
-  /**
-   * Copies the account number to the clipboard and shows a confirmation message.
-   * Fixes the TypeScript error on 'navigator.clipboard'.
-   */
   copyAcc(): void {
     const acct = this.account?.accountNumber;
     if (!acct) return;
 
-    // Type assertion to 'any' or check for 'clipboard' existence on 'navigator'
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(acct)
-        .then(() => {
-          this.snackBar.open('Account number copied!', 'Dismiss', { duration: 3000 });
-        })
+        .then(() => this.snackBar.open('Account number copied!', 'Dismiss', { duration: 3000 }))
         .catch((e) => {
           console.error('Copy failed:', e);
-          // Fallback or error message, though usually permissions are the issue
           this.snackBar.open('Could not copy account number.', 'Dismiss', { duration: 3000 });
         });
     } else {
-      // Fallback for older browsers
       const textarea = document.createElement('textarea');
       textarea.value = acct;
       document.body.appendChild(textarea);
@@ -346,4 +350,4 @@ export class DashboardComponent implements OnInit {
     this.chatMessages = [...this.chatMessages, msg];
     this.chatDraft = '';
   }
-}
+} 

@@ -49,6 +49,8 @@ type TransferRow = {
     .title h1 { margin:0; font-size: clamp(22px, 2.6vw, 30px); font-weight:700; color: var(--text-primary); }
     .sub { color: var(--text-secondary); }
 
+    .controls { display:flex; align-items:center; gap:10px; }
+
     .grid { display:grid; grid-template-rows: auto 1fr; gap:16px; min-height: calc(100dvh - 140px); }
     .kpis { display:grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap:16px; }
     @media (max-width: 1024px){ .kpis{ grid-template-columns: 1fr; } }
@@ -68,8 +70,11 @@ type TransferRow = {
     }
     .card-inner { padding: clamp(16px, 2.2vw, 24px); }
 
-    .kpi { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 16px; border-radius: 12px;
-           background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.06); }
+    .kpi {
+      display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 16px; border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.06);
+    }
     .k-left { display:flex; align-items:center; gap:12px; }
     .k-icon { width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
               background: rgba(137,87,229,.12); border: 1px solid rgba(137,87,229,.28); color:#cdb6ff; }
@@ -82,6 +87,12 @@ type TransferRow = {
     .chart-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom: 8px; }
     .pill { display:inline-flex; align-items:center; gap:.4rem; padding:.3rem .65rem; border-radius:999px;
             background: rgba(137,87,229,.12); border: 1px solid rgba(137,87,229,.28); color: var(--text); font-size:.82rem; }
+
+    /* Chart height: desktop vs phone */
+    .chart-box { height:300px; }
+    @media (max-width: 560px){
+      .chart-box { height:220px; }
+    }
 
     .btn {
       display:inline-flex; align-items:center; gap:.45rem;
@@ -113,7 +124,10 @@ type TransferRow = {
     .action-row .buttons { display:flex; gap:8px; }
 
     /* Transfers table */
-    .table-wrap { overflow:auto; border:1px solid rgba(255,255,255,.06); border-radius:12px; }
+    .table-wrap {
+      overflow:auto; border:1px solid rgba(255,255,255,.06); border-radius:12px;
+      -webkit-overflow-scrolling: touch;
+    }
     table { width:100%; border-collapse:separate; border-spacing:0; min-width:640px; }
     thead tr th {
       text-align:left; font-weight:700; padding:.75rem .9rem;
@@ -124,6 +138,24 @@ type TransferRow = {
     tbody tr td { padding:.65rem .9rem; border-bottom:1px solid rgba(255,255,255,.06); }
     tbody tr:last-child td { border-bottom:none; }
     .amt { font-weight:700; }
+
+    /* Mobile refinements */
+    @media (max-width: 720px){
+      .wrap { padding: 16px; }
+      .header { flex-direction: column; align-items: stretch; gap:10px; }
+      .title { justify-content: center; }
+      .title h1 { text-align:center; }
+      .controls { flex-wrap: wrap; justify-content: center; }
+      .toggle { width: 100%; justify-content: center; }
+      .btn { white-space: nowrap; }
+      .kpi { padding: 12px; }
+      .k-icon { width:42px; height:42px; }
+      .grid { min-height: auto; }
+      .action-row { flex-direction: column; align-items: stretch; }
+      .action-row .buttons { width:100%; }
+      .action-row .buttons .btn { flex:1; justify-content:center; }
+      .pill { font-size:.78rem; }
+    }
   `],
   template: `
     <div class="wrap">
@@ -136,7 +168,7 @@ type TransferRow = {
           </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:10px">
+        <div class="controls">
           <div class="toggle">
             <button [class.active]="mode() === 'transfers'" (click)="mode.set('transfers')">
               <mat-icon style="font-size:18px">show_chart</mat-icon>&nbsp;Transfers
@@ -207,7 +239,7 @@ type TransferRow = {
                 {{ error() }}
               </div>
 
-              <div style="height:300px" *ngIf="!loading() && !error()">
+              <div class="chart-box" *ngIf="!loading() && !error()">
                 <div #chartHost>
                   <app-bar-chart [values]="trendSeries()"></app-bar-chart>
                 </div>
@@ -225,7 +257,7 @@ type TransferRow = {
                 <span class="pill"><mat-icon style="font-size:18px">donut_large</mat-icon> Snapshot</span>
               </div>
 
-              <div style="height:300px">
+              <div class="chart-box">
                 <app-donut-chart [slices]="donutSlices()"></app-donut-chart>
               </div>
             </div>
@@ -345,12 +377,11 @@ export class AdminDashboardComponent implements OnInit {
   refresh() { this.fetchAll(true); }
 
   private fetchAll(isRefresh = false) {
-    // Pull metrics (resilient formats) and CSV (for totals + series fallback) in parallel.
     this.fetchMetrics(isRefresh);
     this.fetchTransfersFromCsv();
   }
 
-  // ---- METRICS (resilient) ----
+  // ---- METRICS ----
   private fetchMetrics(isRefresh = false) {
     const token = localStorage.getItem('token');
     if (!token) { this.router.navigate(['/login']); return; }
@@ -361,13 +392,9 @@ export class AdminDashboardComponent implements OnInit {
     this.error.set(null);
 
     const tryCalls = [
-      // 1) year/month (preferred)
       { params: new HttpParams().set('year', String(year)).set('month', String(month)) },
-      // 2) from/to as LocalDate
       { params: new HttpParams().set('from', this.firstOfMonthISO()).set('to', this.lastOfMonthISO()) },
-      // 3) from/to as OffsetDateTime (+00:00)
       { params: new HttpParams().set('from', this.firstOfMonthOffset()).set('to', this.lastOfMonthOffset()) },
-      // 4) from/to as Zulu
       { params: new HttpParams().set('from', this.firstOfMonthZulu()).set('to', this.lastOfMonthZulu()) },
     ];
 
@@ -375,7 +402,6 @@ export class AdminDashboardComponent implements OnInit {
       if (idx >= tryCalls.length) {
         this.loading.set(false);
         this.snack.open('Failed to load admin metrics', 'Close', { duration: 2500 });
-        // keep UI usable
         if (!this.seriesTransfers().length) this.seriesTransfers.set(this.fakeSeries());
         if (!this.seriesUsers().length) this.seriesUsers.set(this.deriveUsersSeries(this.newUsers(), new Date().getDate()));
         return;
@@ -392,7 +418,6 @@ export class AdminDashboardComponent implements OnInit {
   private applyMetrics(res: any, isRefresh: boolean) {
     this.loading.set(false);
 
-    // Robust field mapping (handles variants)
     const toNum = (v: any) => (v == null ? 0 : Number(v));
     const total = toNum(res?.totalTransferred ?? res?.totalAmount ?? res?.transfers?.total);
     const users = toNum(res?.newUsers ?? res?.newUsersCount ?? res?.users?.new);
@@ -402,7 +427,6 @@ export class AdminDashboardComponent implements OnInit {
     this.newUsers.set(users);
     this.unusualCount.set(unusual);
 
-    // Transfers series (use any available key)
     const tDailySrc =
       (Array.isArray(res?.dailyTransfers) && res.dailyTransfers) ||
       (Array.isArray(res?.transfersDaily) && res.transfersDaily) ||
@@ -412,13 +436,11 @@ export class AdminDashboardComponent implements OnInit {
     if (tSeries.length) {
       this.seriesTransfers.set(tSeries);
     } else if (this.transfers().length) {
-      // fallback: rebuild from CSV list if already available
       this.seriesTransfers.set(this.rebuildTransfersSeriesFromRows(this.transfers()));
     } else {
       this.seriesTransfers.set(this.fakeSeries());
     }
 
-    // Users series (prefer server; fallback: derive from monthly total)
     const uDailySrcList = [
       res?.dailyUsers, res?.usersDaily, res?.dailyNewUsers, res?.newUsersDaily,
       res?.users?.daily
@@ -428,7 +450,6 @@ export class AdminDashboardComponent implements OnInit {
     if (uDaily.length) {
       const series = uDaily.map((n: any) => Number(n) || 0);
       this.seriesUsers.set(series);
-      // If total new users wasn't provided, compute from series sum
       if (!users) this.newUsers.set(series.reduce((a: number, b: number) => a + b, 0));
     } else {
       const days = new Date().getDate();
@@ -438,7 +459,7 @@ export class AdminDashboardComponent implements OnInit {
     if (isRefresh) this.snack.open('Metrics refreshed', 'Close', { duration: 1500 });
   }
 
-  // ---- TRANSFERS via CSV (guaranteed from DB) ----
+  // ---- TRANSFERS via CSV ----
   private fetchTransfersFromCsv() {
     const token = localStorage.getItem('token');
     if (!token) { return; }
@@ -452,21 +473,18 @@ export class AdminDashboardComponent implements OnInit {
         const rows = this.parseCsv(csvText);
         this.transfers.set(rows);
 
-        // Compute total from CSV and override KPI if it’s non-zero
         const sum = rows.reduce((acc: number, r: TransferRow) => acc + (Number.isFinite(r.amount) ? r.amount : 0), 0);
         if (sum > 0) this.totalTransferred.set(sum);
 
-        // If transfer series is empty or clearly synthetic, rebuild from CSV
         const currentT = this.seriesTransfers();
         if (!currentT.length || this.looksSynthetic(currentT)) {
           this.seriesTransfers.set(this.rebuildTransfersSeriesFromRows(rows));
         }
       },
-      error: () => { /* ignore: metrics may still populate */ }
+      error: () => { /* tolerate */ }
     });
   }
 
-  // Build daily sum series from CSV rows
   private rebuildTransfersSeriesFromRows(rows: TransferRow[]): number[] {
     const now = new Date();
     const year = now.getFullYear();
@@ -475,13 +493,11 @@ export class AdminDashboardComponent implements OnInit {
     const sums = new Array<number>(daysInMonth).fill(0);
 
     for (const r of rows) {
-      // r.date may be ISO string; just take day-of-month safely
       const d = new Date(r.date);
       if (!isNaN(d.getTime()) && d.getMonth() === month && d.getFullYear() === year) {
         const dayIdx = d.getDate() - 1;
         sums[dayIdx] += r.amount || 0;
       } else {
-        // If parsing fails, try fallback by slicing 'YYYY-MM-DD'
         const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date);
         if (m && Number(m[1]) === year && Number(m[2]) === (month+1)) {
           const dayIdx = Number(m[3]) - 1;
@@ -492,7 +508,6 @@ export class AdminDashboardComponent implements OnInit {
     return sums;
   }
 
-  // Heuristic: synthetic series is usually smooth-ish without zeros at start
   private looksSynthetic(arr: number[]): boolean {
     if (!arr.length) return true;
     let changes = 0;
@@ -500,12 +515,11 @@ export class AdminDashboardComponent implements OnInit {
     return changes < Math.max(3, Math.floor(arr.length * 0.15));
   }
 
-  // Robust CSV parser for fixed header
   private parseCsv(text: string): TransferRow[] {
     if (!text) return [];
     const lines = text.split(/\r?\n/).filter(Boolean);
     if (!lines.length) return [];
-    const dataLines = lines.slice(1); // skip header
+    const dataLines = lines.slice(1);
 
     const parseLine = (line: string): string[] => {
       const out: string[] = [];
@@ -540,7 +554,6 @@ export class AdminDashboardComponent implements OnInit {
         reference: ref || ''
       });
     }
-    // Sort by date desc
     rows.sort((a: TransferRow, b: TransferRow) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
     return rows;
   }

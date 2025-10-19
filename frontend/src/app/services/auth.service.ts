@@ -10,7 +10,7 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/api/auth/login`, { username, password });
   }
   register(payload: {username:string; password:string; initialDeposit?:string}) {
-    return this.http.post(`${environment.apiBaseUrl}/api/auth/register`, payload);
+    return this.http.post(`${environment.apiBaseUrl}/auth/register`, payload);
   }
   saveToken(t: string) { localStorage.setItem('jwt', t); }
   logout() { localStorage.removeItem('jwt'); }

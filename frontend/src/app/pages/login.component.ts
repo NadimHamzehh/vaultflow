@@ -141,6 +141,13 @@ type Login2FA = { requires2fa: true; tempToken: string };
     .link { color: var(--accent1); text-decoration:none; }
     .link:hover { text-decoration: underline; }
 
+    /* Center the spinner when the button is in loading state */
+    .btn.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .otp-wrap {
       margin-top: .5rem;
       padding: .9rem;
@@ -187,7 +194,7 @@ type Login2FA = { requires2fa: true; tempToken: string };
             </mat-form-field>
 
             <div class="divider"></div>
-            <button class="btn" type="submit" [disabled]="form.invalid || loading()">
+            <button class="btn" type="submit" [disabled]="form.invalid || loading()" [class.loading]="loading()">
               <mat-spinner *ngIf="loading()" diameter="18"></mat-spinner>
               <span *ngIf="!loading()">Sign in</span>
             </button>
@@ -220,7 +227,7 @@ type Login2FA = { requires2fa: true; tempToken: string };
 
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
               <a class="link" href="#" (click)="$event.preventDefault(); resendHint()">Problems with your code?</a>
-              <button class="btn" type="submit" [disabled]="otpForm.invalid || verifying()">
+              <button class="btn" type="submit" [disabled]="otpForm.invalid || verifying()" [class.loading]="verifying()">
                 <mat-spinner *ngIf="verifying()" diameter="18"></mat-spinner>
                 <span *ngIf="!verifying()">Verify & Sign in</span>
               </button>
@@ -267,7 +274,6 @@ export class LoginComponent {
     this.otp = this.otpForm.controls['code'] as FormControl<string>;
   }
 
-  /** Fix for prod template checker (NG8107): avoid optional chain on non-nullable control value in template */
   get otpLen(): number {
     return (this.otp?.value?.length ?? 0);
   }

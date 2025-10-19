@@ -20,7 +20,7 @@ public class SecurityMailService {
 
   private final JavaMailSender mail;
 
-  @Value("${spring.mail.from:no-reply@vaultflow.local}")
+  @Value("${spring.mail.from:nadimhamze10@gmail.com}")
   private String fromAddress;
 
   public SecurityMailService(JavaMailSender mail) {
@@ -82,12 +82,14 @@ public class SecurityMailService {
 
         %s
 
-        IP: %s
+        
+
         Device: %s
+
         Time: %s
 
-        If this wasn't you, please secure your account immediately by changing your password
-        and reviewing your 2FA settings.
+
+        If this wasn't you, please contact the bank immediately.  
 
         — VaultFlow Security
         """.formatted(display, line, ip, device, whenStr);

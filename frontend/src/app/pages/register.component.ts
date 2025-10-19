@@ -180,11 +180,7 @@ const passwordMatchValidator: ValidatorFn = (group: AbstractControl): Validation
             <mat-error *ngIf="form.hasError('mismatch') && cp.touched">Passwords do not match</mat-error>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="pretty-field" style="width:100%;">
-            <mat-label>Initial balance</mat-label>
-            <input matInput type="number" step="0.01" formControlName="initialBalance" placeholder=""/>
-            <mat-error *ngIf="b.invalid && b.touched">Initial balance must be zero or greater</mat-error>
-          </mat-form-field>
+          
 
           <button class="btn" type="submit" [disabled]="form.invalid || loading">
             <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
